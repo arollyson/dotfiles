@@ -123,14 +123,5 @@ fi
 source "$HOME/.zsh_plugins.sh"
 # }}}
 
-# Prompt {{{
-# ======
-autoload -U promptinit
-fpath=($fpath ~/.zsh_prompt)
-promptinit
-
-prompt clean
-# }}}
-
 # source zprofile
 source ~/.zprofile
