@@ -1,2 +1,5 @@
+# Color ls
+alias ls='ls --color'
+
 # Virtualenvwrapper
 . /usr/share/virtualenvwrapper/virtualenvwrapper.sh
