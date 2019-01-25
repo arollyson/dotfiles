@@ -1,10 +1,12 @@
 ###
 autoload -Uz compinit
-if [ $(date +'%j') != $(stat -f '%Sm' -t '%j' ~/.zcompdump) ]; then
-  compinit
-else
-  compinit -C
-fi
+
+# Only reload once per day
+for dump in ~/.zcompdump(N.mh+24); do
+    compinit
+done
+
+compinit -C
 
 # Caching
 export ZSH_CACHE_DIR=$HOME/.zsh/cache

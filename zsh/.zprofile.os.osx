@@ -1,7 +1,5 @@
 # Virtualenv Stuff
-export WORKON_HOME=$HOME/.virtualenvs
 source /usr/local/bin/virtualenvwrapper.sh
-export PROJECT_HOME=$HOME/dev
 
 # Homebrew/Nix
 export PATH="/usr/local/sbin:$PATH"
