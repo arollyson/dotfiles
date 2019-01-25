@@ -1,9 +1,9 @@
-rupa/z
-Tarrasch/zsh-bd
-zsh-users/zsh-completions
-zsh-users/zsh-autosuggestions
+arollyson/z
+arollyson/zsh-bd
+arollyson/zsh-completions
+arollyson/zsh-autosuggestions
 
 arollyson/zsh-clean
-zdharma/fast-syntax-highlighting
-zdharma/history-search-multi-word
-supercrabtree/k
+arollyson/fast-syntax-highlighting
+arollyson/history-search-multi-word
+arollyson/k
