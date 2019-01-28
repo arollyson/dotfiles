@@ -1,5 +1,8 @@
 # Color ls
 alias ls='ls --color'
 
+# Add local user bin to path
+export PATH="$HOME/.local/bin:$PATH"
+
 # Virtualenvwrapper
 . /usr/share/virtualenvwrapper/virtualenvwrapper.sh
