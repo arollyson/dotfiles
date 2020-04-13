@@ -1,26 +1,8 @@
-# Virtualenv Stuff
-source /usr/local/bin/virtualenvwrapper.sh
-
 # Homebrew/Nix
 export PATH="/usr/local/sbin:$PATH"
 
 # vscode
 export PATH="$PATH:/Applications/Visual Studio Code.app/Contents/Resources/app/bin"
-
-# NVM
-# https://gist.github.com/lukeshiru/e239528fbcc4bba9ae2ef406f197df0c
-# https://www.growingwiththeweb.com/2018/01/slow-nvm-init.html
-if [ -s "$(brew --prefix nvm)/nvm.sh" ] && [ ! "$(type -f __init_nvm)" = function ]; then
-    export NVM_DIR="$HOME/.nvm"
-    declare -a __node_commands=(nvm `find -L $NVM_DIR/versions/*/*/bin -type f -exec basename {} \; | sort -u`)
-    function __init_nvm() {
-        for i in "${__node_commands[@]}"; do unalias $i; done
-        . "$(brew --prefix nvm)/nvm.sh"
-        unset __node_commands
-        unset -f __init_nvm
-    }
-    for i in "${__node_commands[@]}"; do alias $i='__init_nvm && '$i; done
-fi
 
 # Golang Paths
 export GOPATH=$HOME/dev/golang
