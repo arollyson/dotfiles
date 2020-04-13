@@ -4,8 +4,8 @@ zsh-users/zsh-completions
 zsh-users/zsh-autosuggestions
 
 arollyson/zsh-clean
-zsh-users/fast-syntax-highlighting
-zsh-users/history-search-multi-word
+zdharma/fast-syntax-highlighting
+zdharma/history-search-multi-word
 supercrabtree/k
 lukechilds/zsh-nvm
 ohmyzsh/ohmyzsh path:plugins/virtualenvwrapper
