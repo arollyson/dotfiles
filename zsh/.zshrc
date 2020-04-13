@@ -115,6 +115,10 @@ zstyle ':completion:*' menu select=2
 # Source antibody stuff
 # Antibody {{{
 # ======
+
+# Lazily load NVM to reduce shell startup lag
+export NVM_LAZY_LOAD=true
+
 # If plugins have not been downloaded, then download and static load in future.
 if [[ ! -e "$HOME/.zsh_plugins.sh" ]]; then
     # Fetch plugins.

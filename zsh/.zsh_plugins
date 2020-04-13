@@ -1,9 +1,11 @@
-arollyson/z
-arollyson/zsh-bd
-arollyson/zsh-completions
-arollyson/zsh-autosuggestions
+rupa/z
+Tarrasch/zsh-bd
+zsh-users/zsh-completions
+zsh-users/zsh-autosuggestions
 
 arollyson/zsh-clean
-arollyson/fast-syntax-highlighting
-arollyson/history-search-multi-word
-arollyson/k
+zsh-users/fast-syntax-highlighting
+zsh-users/history-search-multi-word
+supercrabtree/k
+lukechilds/zsh-nvm
+ohmyzsh/ohmyzsh path:plugins/virtualenvwrapper
