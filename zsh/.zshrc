@@ -1,6 +1,12 @@
 ###
 autoload -Uz compinit
 
+# Load in homebrew autocompletions
+if type brew &>/dev/null
+then
+  FPATH="$(brew --prefix)/share/zsh/site-functions:${FPATH}"
+fi
+
 # Only reload once per day
 for dump in ~/.zcompdump(N.mh+24); do
     compinit

@@ -2,10 +2,9 @@ rupa/z
 Tarrasch/zsh-bd
 zsh-users/zsh-completions
 zsh-users/zsh-autosuggestions
+zsh-users/zsh-syntax-highlighting
 
 arollyson/zsh-clean
-zdharma/fast-syntax-highlighting
-zdharma/history-search-multi-word
+zdharma-continuum/history-search-multi-word
 supercrabtree/k
 lukechilds/zsh-nvm
-ohmyzsh/ohmyzsh path:plugins/virtualenvwrapper

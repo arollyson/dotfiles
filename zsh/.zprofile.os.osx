@@ -1,5 +1,11 @@
-# Homebrew/Nix
-export PATH="/usr/local/sbin:$PATH"
+# iterm2 integration
+test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
+
+# Init homebrew
+eval $(/opt/homebrew/bin/brew shellenv)
+
+# Homebrew/Nix/etc
+export PATH="$HOME/.local/bin:/usr/local/sbin:$PATH"
 
 # vscode
 export PATH="$PATH:/Applications/Visual Studio Code.app/Contents/Resources/app/bin"
@@ -9,3 +15,6 @@ export GOPATH=$HOME/dev/golang
 export GOROOT=/usr/local/opt/go/libexec
 export PATH=$PATH:$GOPATH/bin
 export PATH=$PATH:$GOROOT/bin
+
+# Pyenv paths
+eval "$(pyenv init --path)"
