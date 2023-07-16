@@ -8,23 +8,23 @@ export PROJECT_HOME=~/dev
 # Source OS specific profiles based on uname results
 case `uname` in
   Darwin)
-      source ~/.zprofile.os.osx
+      source ~/.zprofile.d/os.osx
   ;;
   Linux)
-      source ~/.zprofile.os.linux
+      source ~/.zprofile.d/os.linux
   ;;
   FreeBSD)
-      source ~/.zprofile.os.freebsd
+      source ~/.zprofile.d/os.freebsd
   ;;
   CYGWIN)
-      source ~/.zprofile.os.cygwin
+      source ~/.zprofile.d/os.cygwin
   ;;
   MINGW)
-      source ~/.zprofile.os.mingw
+      source ~/.zprofile.d/os.mingw
   ;;
 esac
 
 # Source enironment specific profiles (work, server, personal, etc)
-for file in ~/.zprofile.env.*; do
+for file in ~/.zprofile.d/env.*; do
     source "$file"
 done

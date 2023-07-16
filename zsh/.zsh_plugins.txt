@@ -4,6 +4,6 @@ zsh-users/zsh-completions
 zsh-users/zsh-autosuggestions
 zsh-users/zsh-syntax-highlighting
 
-arollyson/zsh-clean
+sindresorhus/pure     kind:fpath
 zdharma-continuum/history-search-multi-word
 lukechilds/zsh-nvm
