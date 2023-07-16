@@ -1,12 +1,6 @@
 ###
 autoload -Uz compinit
 
-# Load in homebrew autocompletions
-if type brew &>/dev/null
-then
-  FPATH="$(brew --prefix)/share/zsh/site-functions:${FPATH}"
-fi
-
 # Only reload once per day
 for dump in ~/.zcompdump(N.mh+24); do
     compinit
@@ -65,6 +59,19 @@ else
   bindkey "^[3;5~" delete-char
   bindkey "\e[3~" delete-char
 fi
+
+# Start typing + [Up-Arrow] - fuzzy find history forward
+if [[ -n "${terminfo[kcuu1]}" ]]; then
+  autoload -U up-line-or-beginning-search
+  zle -N up-line-or-beginning-search
+  bindkey "${terminfo[kcuu1]}" up-line-or-beginning-search
+fi
+# Start typing + [Down-Arrow] - fuzzy find history backward
+if [[ -n "${terminfo[kcud1]}" ]]; then
+  autoload -U down-line-or-beginning-search
+  zle -N down-line-or-beginning-search
+  bindkey "${terminfo[kcud1]}" down-line-or-beginning-search
+fi
 # }}}
 
 # History {{{
@@ -100,40 +107,28 @@ setopt GLOB_COMPLETE      # Don't insert anything resulting from a glob pattern,
 setopt NO_LIST_BEEP       # Don't beep on an ambiguous completion.
 setopt LIST_PACKED        # Try to make the completion list smaller by drawing smaller columns.
 setopt MENU_COMPLETE      # Instead of listing possibilities, select the first match immediately.
+setopt AUTO_MENU          # Show completion menu on successive tab press
 # forces zsh to realize new commands
 zstyle ':completion:*' completer _oldlist _expand _complete _match _ignored _approximate
 # Match dircolors with completion schema.
 zstyle ':completion:*' list-colors ${(s#:#)LS_COLORS}
-## case-insensitive (all),partial-word and then substring completion
-if [ "x$CASE_SENSITIVE" = "xtrue" ]; then
-    zstyle ':completion:*' matcher-list 'r:|[._-]=* r:|=*' 'l:|=* r:|=*'
-    unset CASE_SENSITIVE
+# case insensitive (all), partial-word and substring completion
+if [[ "$CASE_SENSITIVE" = true ]]; then
+  zstyle ':completion:*' matcher-list 'r:|=*' 'l:|=* r:|=*'
 else
-    zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' 'r:|[._-]=* r:|=*' 'l:|=* r:|=*'
+  if [[ "$HYPHEN_INSENSITIVE" = true ]]; then
+    zstyle ':completion:*' matcher-list 'm:{[:lower:][:upper:]-_}={[:upper:][:lower:]_-}' 'r:|=*' 'l:|=* r:|=*'
+  else
+    zstyle ':completion:*' matcher-list 'm:{[:lower:][:upper:]}={[:upper:][:lower:]}' 'r:|=*' 'l:|=* r:|=*'
+  fi
 fi
+unset CASE_SENSITIVE HYPHEN_INSENSITIVE
 # pasting with tabs doesn't perform completion
 zstyle ':completion:*' insert-tab pending
 # rehash if command not found (possibly recently installed)
 zstyle ':completion:*' rehash true
 # menu if nb items > 2
 zstyle ':completion:*' menu select=2
-# }}}
-
-# Source antibody stuff
-# Antibody {{{
-# ======
-
-# Lazily load NVM to reduce shell startup lag
-export NVM_LAZY_LOAD=true
-
-# If plugins have not been downloaded, then download and static load in future.
-if [[ ! -e "$HOME/.zsh_plugins.sh" ]]; then
-    # Fetch plugins.
-    antibody bundle < "$HOME/.zsh_plugins" > "$HOME/.zsh_plugins.sh"
-fi
-
-# Load plugins.
-source "$HOME/.zsh_plugins.sh"
 # }}}
 
 # source zprofile
