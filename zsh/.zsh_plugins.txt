@@ -3,7 +3,8 @@ Tarrasch/zsh-bd
 zsh-users/zsh-completions
 zsh-users/zsh-autosuggestions
 zsh-users/zsh-syntax-highlighting
+mafredri/zsh-async
 
-sindresorhus/pure     kind:fpath
+spaceship-prompt/spaceship-prompt
 zdharma-continuum/history-search-multi-word
 lukechilds/zsh-nvm
