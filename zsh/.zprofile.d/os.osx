@@ -1,48 +1,7 @@
 #!/usr/bin/env zsh
 
-# export a TTY for gpg
-export GPG_TTY=$(tty)
-
-# Init homebrew
-eval $(/opt/homebrew/bin/brew shellenv)
-export HOMEBREW_NO_ENV_HINTS=true
-
-FPATH="$(brew --prefix)/share/zsh/site-functions:${FPATH}"
-
-# Source antidote stuff
-# Antidote {{{
-# ======
-
-# Lazily load NVM to reduce shell startup lag
-export NVM_LAZY_LOAD=true
-
-source $(brew --prefix)/opt/antidote/share/antidote/antidote.zsh
-
-antidote load
-
-# }}}
-
 # iterm2 integration
 test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
 
-# Homebrew/Nix/etc
-export PATH="$HOME/.local/bin:/usr/local/sbin:$PATH"
-
 # vscode
 export PATH="$PATH:/Applications/Visual Studio Code.app/Contents/Resources/app/bin"
-
-# Golang Paths
-export GOPATH=$HOME/dev/golang
-export GOROOT=/usr/local/opt/go/libexec
-export PATH=$PATH:$GOPATH/bin
-export PATH=$PATH:$GOROOT/bin
-
-# Pyenv paths
-eval "$(pyenv init --path)"
-
-# Use LSD for LS
-alias ls='lsd'
-alias ll='ls -l'
-alias la='ls -a'
-alias lla='ls -la'
-alias lt='ls --tree'

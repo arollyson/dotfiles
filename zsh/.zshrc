@@ -1,4 +1,5 @@
 ###
+ZSH_DISABLE_COMPFIX="true"
 autoload -Uz compinit
 
 # Only reload once per day
