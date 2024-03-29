@@ -48,8 +48,8 @@ fi
 
 bindkey ' ' magic-space                               # [Space] - do history expansion
 
-bindkey '^[[1;5C' forward-word                        # [Ctrl-RightArrow] - move forward one word
-bindkey '^[[1;5D' backward-word                       # [Ctrl-LeftArrow] - move backward one word
+bindkey "\e\e[C" forward-word                         # [Alt-RightArrow] - move forward one word
+bindkey "\e\e[D" backward-word                        # [Alt-LeftArrow] - move backward one word
 
 bindkey '^?' backward-delete-char                     # [Backspace] - delete backward
 if [[ "${terminfo[kdch1]}" != "" ]]; then
