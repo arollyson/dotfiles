@@ -7,7 +7,7 @@ case `uname` in
     Linux)
         export DOTFILES_OS=linux
         export DOTFILES_BREW_PATH=/home/linuxbrew/.linuxbrew/bin
-  ;;
+    ;;
 esac
 
 if ! type brew &>/dev/null; then
