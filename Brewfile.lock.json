@@ -1803,13 +1803,24 @@
         "options": {
           "full_name": "gpg-suite-no-mail"
         }
+      },
+      "font-hack-nerd-font": {
+        "version": "3.1.1",
+        "options": {
+          "full_name": "font-hack-nerd-font"
+        }
+      }
+    },
+    "tap": {
+      "homebrew/cask-fonts": {
+        "revision": "85b613ffa4af82d440b41e2745402bac2ef5aafa"
       }
     }
   },
   "system": {
     "macos": {
       "sonoma": {
-        "HOMEBREW_VERSION": "4.2.15-115-gc4ce3be",
+        "HOMEBREW_VERSION": "4.2.15-140-g865d38a",
         "HOMEBREW_PREFIX": "/opt/homebrew",
         "Homebrew/homebrew-core": "api",
         "CLT": "15.1.0.0.1.1700200546",
