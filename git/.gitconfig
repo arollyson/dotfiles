@@ -1,8 +1,3 @@
-[user]
-    name = "Alek Rollyson"
-    email = "alek@runwayml.com"
-	signingkey = 3395D248024C1294
-
 [core]
     editor = vim
     pager = less -FRSX
@@ -140,3 +135,6 @@
     rea = remote add
     rex = remote rm
     rem = remote rename
+
+[include]
+    path = ~/.gitconfig_user
