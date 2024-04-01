@@ -16,7 +16,7 @@ if ! command -v brew &> /dev/null
 then
     echo "Installing brew"
     export NONINTERACTIVE=1
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/8eb03394e3f4081c1519fc01bb562faf0c6fbd14/install.sh)"
     eval "$($DOTFILES_BREW_PATH/brew shellenv)"
 fi
 
