@@ -40,11 +40,11 @@ brew "zsh-history-substring-search"
 brew "z"
 
 brew "pinentry-mac" if OS.mac?
-brew "gpg-suite-no-mail" if OS.mac?
 
 cask "1password" if OS.mac?
 cask "docker" if OS.mac?
-cask "slack" if OS.mac?
 cask "iterm2" if OS.mac?
+cask "gpg-suite-no-mail" if OS.mac?
+cask "slack" if OS.mac?
 cask "visual-studio-code" if OS.mac?
 cask "zoom" if OS.mac?
