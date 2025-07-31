@@ -12,6 +12,8 @@ case `uname` in
     ;;
 esac
 
+sudo apt update -yq
+
 if ! command -v brew &> /dev/null
 then
     echo "Installing brew"
@@ -27,7 +29,7 @@ echo "Installing dotfiles with stow"
 stow git tmux vim zsh
 
 echo "Setting shell to zsh"
-chsh -s $(which zsh)
+sudo chsh -s $(which zsh) $USER
 
 exec zsh
 source ~/.zshrc
