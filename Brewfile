@@ -1,9 +1,6 @@
-tap "homebrew/cask-fonts"
-
 brew "awscli"
 brew "bat"
 brew "cheat"
-brew "chezmoi"
 brew "curl"
 brew "fzf"
 brew "git"
@@ -40,11 +37,9 @@ brew "zsh-completions"
 brew "zsh-syntax-highlighting"
 brew "zsh-history-substring-search"
 brew "z"
-
-brew "pinentry-mac" if OS.mac?
-
 cask "font-hack-nerd-font"
 
+brew "pinentry-mac" if OS.mac?
 cask "1password" if OS.mac?
 cask "docker" if OS.mac?
 cask "iterm2" if OS.mac?
