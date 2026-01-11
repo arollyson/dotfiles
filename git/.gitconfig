@@ -14,9 +14,6 @@
 [pull]
   rebase = false
 
-[commit]
-	gpgsign = true
-
 [diff]
     tool = vimdiff
 
