@@ -4,11 +4,11 @@
 case `uname` in
     Darwin)
         export DOTFILES_OS=osx
-        export DOTFILES_BREW_PATH=/opt/homebrew/bin
+        export DOTFILES_BREW_PATH=/opt/homebrew
     ;;
     Linux)
         export DOTFILES_OS=linux
-        export DOTFILES_BREW_PATH=/home/linuxbrew/.linuxbrew/bin
+        export DOTFILES_BREW_PATH=/home/linuxbrew/.linuxbrew
     ;;
 esac
 
@@ -19,7 +19,8 @@ then
     echo "Installing brew"
     export NONINTERACTIVE=1
     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/6895ebe7fd7e90478237d4219823f9c74e5e76fd/install.sh)"
-    eval "$($DOTFILES_BREW_PATH/brew shellenv)"
+    eval "$($DOTFILES_BREW_PATH/bin/brew shellenv)"
+    export BREW_PREFIX=$(brew --prefix)
 fi
 
 echo "Installing brew packages"
