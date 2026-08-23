@@ -38,6 +38,13 @@ no() {
   failed=$((failed + 1))
 }
 
+# script(1) hands the pty an EOF and some platforms echo it back: macOS prints
+# a literal ^D. That is the terminal talking, not the shell, so it must not
+# count as startup output.
+sanitize() {
+  tr -d '\r\004' | sed 's/\^D//g' | sed '/^[[:space:]]*$/d'
+}
+
 # A login shell is not an interactive one: .zshrc and .zshrc.d only run for the
 # latter, which needs a pty. script(1) is spelled differently per platform.
 #
@@ -108,14 +115,14 @@ fi
 # --- shell startup ---------------------------------------------------------
 # No Homebrew plugins exist in a scratch HOME, which is exactly the devcontainer
 # case: startup must be silent, not merely survivable.
-login_err="$(HOME="$HOME_A" zsh -l -c 'true' </dev/null 2>&1 >/dev/null || true)"
+login_err="$(HOME="$HOME_A" zsh -l -c 'true' </dev/null 2>&1 >/dev/null | sanitize || true)"
 if [[ -z $login_err ]]; then
   ok "login shell starts silently"
 else
   no "login shell wrote to stderr: $login_err"
 fi
 
-inter_out="$(interactive_output "$HOME_A" | tr -d '\r' | sed '/^$/d')"
+inter_out="$(interactive_output "$HOME_A" | sanitize)"
 if [[ -z $inter_out ]]; then
   ok "interactive shell starts silently"
 else
@@ -147,7 +154,7 @@ rm -f "$HOME_A/.zcompdump"
 # Prepend, never replace: a bare FPATH= would hide compinit's own definitions
 # and the test would fail for entirely the wrong reason.
 default_fpath="$(HOME="$HOME_A" zsh -l -c 'print -rn -- ${(j.:.)fpath}')"
-insecure_out="$(FPATH="$insecure:$default_fpath" interactive_output "$HOME_A" | tr -d '\r' | sed '/^$/d')"
+insecure_out="$(FPATH="$insecure:$default_fpath" interactive_output "$HOME_A" | sanitize)"
 if [[ -z $insecure_out ]]; then
   ok "insecure fpath directory does not abort compinit"
 else
@@ -165,7 +172,8 @@ fi
 norepo="$SCRATCH/norepo"
 mkdir -p "$norepo"
 git -C "$norepo" init -q .
-git -C "$norepo" commit -q --allow-empty -m init
+git -C "$norepo" -c user.name="dotfiles tests" -c user.email="tests@example.invalid" \
+  commit -q --allow-empty -m init
 branch="$(git -C "$norepo" -c include.path="$REPO_ROOT/git/.gitconfig" defaultbranch || true)"
 if [[ $branch == "main" ]]; then
   ok "defaultbranch falls back to main without origin/HEAD"

@@ -2,6 +2,11 @@
 # Sourced by every zsh: login, interactive, and scripts alike.
 # Keep this cheap and free of side effects.
 
+# Ubuntu's /etc/zsh/zshrc runs a bare `compinit` before ~/.zshrc gets a say,
+# and a bare compinit stops to ask about insecure directories, then aborts.
+# This is the opt-out it documents; our own compinit -i runs later in .zshrc.
+skip_global_compinit=1
+
 # Tie `path`/`fpath` arrays to their scalar counterparts and drop duplicates
 # automatically. This is what makes repeated sourcing of profile fragments
 # harmless instead of accumulating entries.
