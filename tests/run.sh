@@ -118,6 +118,30 @@ else
   cat "$SCRATCH/install.log" >&2
 fi
 
+# ~/.claude must be a real directory holding symlinks, never a symlink itself:
+# folded, Claude Code would write credentials and session transcripts into this
+# repo. Note the scratch HOME has no pre-existing ~/.claude, which is the fresh
+# machine case where folding actually happens.
+if [[ -L $HOME_A/.claude ]]; then
+  no ".claude was folded into a symlink (runtime state would land in the repo)"
+elif [[ -d $HOME_A/.claude ]]; then
+  ok ".claude is a real directory, not folded"
+else
+  no ".claude was not created"
+fi
+for link in .claude/CLAUDE.md .claude/settings.json .claude/statusline.sh; do
+  if [[ -L $HOME_A/$link ]]; then
+    ok "linked $link"
+  else
+    no "missing symlink $link"
+  fi
+done
+if [[ -x $HOME_A/.claude/statusline.sh ]]; then
+  ok "statusline.sh is executable"
+else
+  no "statusline.sh is not executable"
+fi
+
 for link in .zshenv .zprofile .zshrc .zshrc.d .zprofile.d .vimrc .tmux.conf .gitconfig; do
   if [[ -L $HOME_A/$link ]]; then
     ok "linked $link"

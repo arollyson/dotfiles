@@ -4,3 +4,11 @@ zsh/.zprofile.d/env.work
 
 # Machine-specific and regenerated on every `brew bundle` run.
 Brewfile.lock.json
+
+# ~/.claude holds credentials, session transcripts and gigabytes of job state.
+# Track the two config files by name and ignore anything else that lands here,
+# so a mis-stow can never commit runtime data to a public repo.
+claude/.claude/*
+!claude/.claude/CLAUDE.md
+!claude/.claude/settings.json
+!claude/.claude/statusline.sh

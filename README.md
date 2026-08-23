@@ -41,11 +41,27 @@ Reruns are idempotent.
 ## Layout
 
 ```
+claude/     Claude Code CLAUDE.md, settings.json + statusline script
 git/        .gitconfig + per-identity fragments
 tmux/       .tmux.conf
 vim/        .vimrc and a native-pack colorscheme submodule
 zsh/        .zshenv .zprofile .zshrc and their fragment dirs
 ```
+
+### claude
+
+`~/.claude` also holds credentials, session transcripts and gigabytes of job
+state, so this package is stowed with `--no-folding`: `~/.claude` stays a real
+directory and only `CLAUDE.md`, `settings.json` and `statusline.sh` are
+symlinked. Folding it
+would turn `~/.claude` itself into a link into this repo and Claude would write
+all of that runtime state into version control.
+
+`.gitignore` tracks those three files by name and ignores everything else under
+`claude/.claude/`, so a mis-stow still cannot commit anything private. The test
+suite asserts the directory is never folded.
+
+The statusline needs `jq`, which the Brewfile already installs.
 
 ### zsh load order
 

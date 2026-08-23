@@ -10,6 +10,12 @@ set -euo pipefail
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 STOW_PACKAGES=(git tmux vim zsh)
 
+# Stowed with --no-folding. ~/.claude holds credentials, session transcripts
+# and gigabytes of job state; if stow folds the directory then ~/.claude itself
+# becomes a symlink into this repo and Claude writes all of that into version
+# control. Unfolded, only the named config files are linked.
+NO_FOLD_PACKAGES=(claude)
+
 # Pinned so a compromised upstream installer cannot silently change what runs.
 # Bump deliberately: https://github.com/Homebrew/install/commits/master
 BREW_INSTALLER_REF=b9990527570f7e07d5393f37447b8293ec0a78de
@@ -163,6 +169,9 @@ link_dotfiles() {
   # --restow removes stale links first, which makes reruns idempotent and picks
   # up files that moved between packages.
   if ! stow --dir="$REPO_ROOT" --target="$HOME" --restow "${STOW_PACKAGES[@]}"; then
+    die "stow reported conflicts. Move or delete the offending files in \$HOME and rerun."
+  fi
+  if ! stow --dir="$REPO_ROOT" --target="$HOME" --restow --no-folding "${NO_FOLD_PACKAGES[@]}"; then
     die "stow reported conflicts. Move or delete the offending files in \$HOME and rerun."
   fi
 }
