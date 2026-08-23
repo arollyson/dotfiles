@@ -42,7 +42,25 @@ no() {
 # a literal ^D. That is the terminal talking, not the shell, so it must not
 # count as startup output.
 sanitize() {
-  tr -d '\r\004' | sed 's/\^D//g' | sed '/^[[:space:]]*$/d'
+  # Strip every C0 control character except tab and newline, plus DEL. The
+  # hand-picked list this replaced missed the backspaces macOS emits to erase
+  # its echoed ^D, which then read as "output" that displays as nothing.
+  tr -d '\000-\010\013-\037\177' | sed 's/\^D//g' | sed '/^[[:space:]]*$/d'
+}
+
+# Renders captured output for a failure message. Falls back to a byte dump when
+# the text is all non-printing, so a mystery failure reports what it actually
+# got instead of a blank line.
+render() {
+  local text=$1
+  # [:graph:] is "printable and not space" -- the test is whether there is any
+  # visible glyph at all. Checking [:space:] instead lets control characters
+  # like backspace count as content and print as a blank line.
+  if [[ -n ${text//[![:graph:]]/} ]]; then
+    printf '%s' "$text"
+  else
+    printf '(non-printing bytes) %s' "$(printf '%s' "$text" | od -An -c | tr -s ' ' | tr '\n' ' ')"
+  fi
 }
 
 # A login shell is not an interactive one: .zshrc and .zshrc.d only run for the
@@ -55,10 +73,13 @@ sanitize() {
 # timeout(1), hence the hand-rolled wait.
 interactive_output() {
   local home=$1 out="$SCRATCH/interactive.$$" pid waited=0
+  # stty -echo stops the pty echoing our EOF straight back: macOS returns a
+  # literal ^D plus erase characters, which is the terminal talking, not zsh.
+  local cmd='stty -echo 2>/dev/null; zsh -lic true'
   if [[ $(uname -s) == Darwin ]]; then
-    HOME="$home" script -q /dev/null zsh -lic 'true' </dev/null >"$out" 2>&1 &
+    HOME="$home" script -q /dev/null /bin/sh -c "$cmd" </dev/null >"$out" 2>&1 &
   else
-    HOME="$home" script -qec "zsh -lic 'true'" /dev/null </dev/null >"$out" 2>&1 &
+    HOME="$home" script -qec "$cmd" /dev/null </dev/null >"$out" 2>&1 &
   fi
   pid=$!
   while kill -0 "$pid" 2>/dev/null; do
@@ -126,7 +147,7 @@ inter_out="$(interactive_output "$HOME_A" | sanitize)"
 if [[ -z $inter_out ]]; then
   ok "interactive shell starts silently"
 else
-  no "interactive shell produced output: $inter_out"
+  no "interactive shell produced output: $(render "$inter_out")"
 fi
 
 path_all="$(HOME="$HOME_A" zsh -l -c 'print -r -- $PATH' | tr ':' '\n' | grep -c . || true)"
@@ -158,7 +179,7 @@ insecure_out="$(FPATH="$insecure:$default_fpath" interactive_output "$HOME_A" | 
 if [[ -z $insecure_out ]]; then
   ok "insecure fpath directory does not abort compinit"
 else
-  no "insecure fpath directory broke startup: $insecure_out"
+  no "insecure fpath directory broke startup: $(render "$insecure_out")"
 fi
 
 # --- git -------------------------------------------------------------------
