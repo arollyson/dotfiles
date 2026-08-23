@@ -40,13 +40,33 @@ no() {
 
 # A login shell is not an interactive one: .zshrc and .zshrc.d only run for the
 # latter, which needs a pty. script(1) is spelled differently per platform.
+#
+# stdin is /dev/null so anything that prompts during startup gets an immediate
+# EOF and fails loudly. Without it a compinit question blocks forever: macOS
+# happens to deliver EOF and abort, Linux CI just hung until the job died. The
+# wall-clock guard catches every other way a shell can wedge; macOS ships no
+# timeout(1), hence the hand-rolled wait.
 interactive_output() {
-  local home=$1
+  local home=$1 out="$SCRATCH/interactive.$$" pid waited=0
   if [[ $(uname -s) == Darwin ]]; then
-    HOME="$home" script -q /dev/null zsh -lic 'true' 2>&1 || true
+    HOME="$home" script -q /dev/null zsh -lic 'true' </dev/null >"$out" 2>&1 &
   else
-    HOME="$home" script -qec "zsh -lic 'true'" /dev/null 2>&1 || true
+    HOME="$home" script -qec "zsh -lic 'true'" /dev/null </dev/null >"$out" 2>&1 &
   fi
+  pid=$!
+  while kill -0 "$pid" 2>/dev/null; do
+    if ((waited >= 20)); then
+      kill -9 "$pid" 2>/dev/null || true
+      wait "$pid" 2>/dev/null || true
+      echo "shell startup blocked for ${waited}s (something is prompting)"
+      return 0
+    fi
+    sleep 1
+    waited=$((waited + 1))
+  done
+  wait "$pid" 2>/dev/null || true
+  cat "$out"
+  rm -f "$out"
 }
 
 command -v zsh >/dev/null 2>&1 || {
@@ -88,7 +108,7 @@ fi
 # --- shell startup ---------------------------------------------------------
 # No Homebrew plugins exist in a scratch HOME, which is exactly the devcontainer
 # case: startup must be silent, not merely survivable.
-login_err="$(HOME="$HOME_A" zsh -l -c 'true' 2>&1 >/dev/null || true)"
+login_err="$(HOME="$HOME_A" zsh -l -c 'true' </dev/null 2>&1 >/dev/null || true)"
 if [[ -z $login_err ]]; then
   ok "login shell starts silently"
 else
@@ -114,6 +134,24 @@ if [[ -z "$(HOME="$HOME_A" zsh -l -c 'print -r -- $PATH' | tr ':' '\n' | grep -x
   ok "no duplicated bare /bin from an unset GOROOT"
 else
   no "bare /bin appears more than once in PATH"
+fi
+
+# An insecure directory on fpath must not stop compinit to ask a question:
+# that aborts it outright and leaves the shell with no completion. Homebrew's
+# share/zsh is group-writable on macOS often enough that this is the real
+# failure mode, and it reproduces anywhere via a world-writable directory.
+insecure="$SCRATCH/insecure-site-functions"
+mkdir -p "$insecure"
+chmod 777 "$insecure"
+rm -f "$HOME_A/.zcompdump"
+# Prepend, never replace: a bare FPATH= would hide compinit's own definitions
+# and the test would fail for entirely the wrong reason.
+default_fpath="$(HOME="$HOME_A" zsh -l -c 'print -rn -- ${(j.:.)fpath}')"
+insecure_out="$(FPATH="$insecure:$default_fpath" interactive_output "$HOME_A" | tr -d '\r' | sed '/^$/d')"
+if [[ -z $insecure_out ]]; then
+  ok "insecure fpath directory does not abort compinit"
+else
+  no "insecure fpath directory broke startup: $insecure_out"
 fi
 
 # --- git -------------------------------------------------------------------

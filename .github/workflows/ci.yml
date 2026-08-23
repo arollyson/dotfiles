@@ -20,6 +20,10 @@ jobs:
 
       # One source of truth for linting: the same hooks that run on commit.
       # pipx is preinstalled on GitHub runners, so this needs no extra action.
+      # The zsh-syntax hook shells out to zsh, which runners don't ship.
+      - name: Install zsh
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends zsh
+
       - name: Run pre-commit hooks
         run: |
           set -euo pipefail

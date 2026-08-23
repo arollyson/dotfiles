@@ -64,7 +64,7 @@ repos:
         language: system
         # zsh -n takes a single script; extra arguments become positional
         # parameters and are silently ignored, hence the loop.
-        entry: bash -c 'for f in "$@"; do zsh -n "$f" || exit 1; done' --
+        entry: bash -c 'command -v zsh >/dev/null || { echo "zsh-syntax needs zsh on PATH" >&2; exit 1; }; for f in "$@"; do zsh -n "$f" || exit 1; done' --
         # Matched by path, not by type: identify only reads shebangs from
         # executable files, so the sourced fragments under .zprofile.d/ come
         # back as plain text and a types_or: [zsh] filter would skip them --

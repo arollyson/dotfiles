@@ -67,19 +67,18 @@ zstyle ':completion:*' menu select=2
 
 # Rebuild the dump at most once a day; use the cached one otherwise. Runs after
 # .zprofile has extended fpath so brew/distro completions are picked up.
-ZSH_DISABLE_COMPFIX="true"
 autoload -Uz compinit
 # Note the array: [[ ]] performs no filename generation, so the qualifier has
 # to be expanded somewhere that does. Plain (N.mh+24) rather than (#qN.mh+24)
 # because the latter needs EXTENDED_GLOB, which isn't set here.
 _zcompdump_stale=("$HOME"/.zcompdump(N.mh+24))
 if [[ ! -f $HOME/.zcompdump ]] || (( $#_zcompdump_stale )); then
-    compinit
+    compinit -i
     # compinit leaves an unchanged dump alone, so stamp it here or the 24h
     # clock never resets and every shell keeps taking the slow path.
     touch "$HOME/.zcompdump"
 else
-    compinit -C
+    compinit -i -C
 fi
 unset _zcompdump_stale
 # }}}
