@@ -7,6 +7,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -18,17 +22,36 @@ jobs:
         with:
           persist-credentials: false
 
-      # One source of truth for linting: the same hooks that run on commit.
-      # pipx is preinstalled on GitHub runners, so this needs no extra action.
-      # The zsh-syntax hook shells out to zsh, which runners don't ship.
       - name: Install zsh
-        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends zsh
-
-      - name: Run pre-commit hooks
         run: |
           set -euo pipefail
-          pipx install prek==0.4.12
-          prek run --all-files --show-diff-on-failure
+          sudo apt-get install -y --no-install-recommends zsh 2>/dev/null ||
+            { sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends zsh; }
+
+      - name: Cache prek hook environments
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: |
+            ~/.cache/prek/hooks
+            ~/.cache/prek/repos
+          key: prek-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+          restore-keys: prek-${{ runner.os }}-
+
+      - name: Install prek
+        env:
+          PREK_VERSION: v0.4.12
+          PREK_SHA256: f2476eae75463f96dd26c78466c4e8f42031ff99214abf3d208f1cf04a0e4ddf
+        run: |
+          set -euo pipefail
+          asset=prek-x86_64-unknown-linux-gnu.tar.gz
+          curl -fsSL -o "$asset" \
+            "https://github.com/j178/prek/releases/download/${PREK_VERSION}/${asset}"
+          echo "${PREK_SHA256}  ${asset}" | sha256sum -c -
+          tar xzf "$asset" --strip-components=1
+          sudo install -m755 prek /usr/local/bin/prek
+
+      - name: Run pre-commit hooks
+        run: prek run --all-files --show-diff-on-failure
 
   bootstrap:
     strategy:
@@ -46,14 +69,14 @@ jobs:
         run: |
           set -euo pipefail
           if [ "$RUNNER_OS" = "Linux" ]; then
-            sudo apt-get update -qq
-            sudo apt-get install -y --no-install-recommends zsh stow
+            sudo apt-get install -y --no-install-recommends zsh stow 2>/dev/null ||
+              { sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends zsh stow; }
           else
-            brew install stow
+            # Without this brew runs a full self-update first, which takes far
+            # longer than installing stow does.
+            export HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1
+            command -v stow >/dev/null 2>&1 || brew install stow
           fi
 
-      # The assertions live in tests/run.sh so they can be run locally too;
-      # CI's job is the platform matrix, not a second copy of the checks. The
-      # script installs into a scratch HOME, so the runner's own is untouched.
       - name: Run test suite
         run: ./tests/run.sh
