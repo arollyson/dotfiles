@@ -1,0 +1,55 @@
+---
+name: ci
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      # One source of truth for linting: the same hooks that run on commit.
+      # pipx is preinstalled on GitHub runners, so this needs no extra action.
+      - name: Run pre-commit hooks
+        run: |
+          set -euo pipefail
+          pipx install prek==0.4.12
+          prek run --all-files --show-diff-on-failure
+
+  bootstrap:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Install zsh and stow
+        run: |
+          set -euo pipefail
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends zsh stow
+          else
+            brew install stow
+          fi
+
+      # The assertions live in tests/run.sh so they can be run locally too;
+      # CI's job is the platform matrix, not a second copy of the checks. The
+      # script installs into a scratch HOME, so the runner's own is untouched.
+      - name: Run test suite
+        run: ./tests/run.sh

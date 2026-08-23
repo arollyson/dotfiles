@@ -30,14 +30,15 @@ set background=dark                         "dark background
 set laststatus=2                            "always show status
 set ruler                                   "display cursor position info in bottom right
 set number                                  "line numbers on the left
-colorscheme gruvbox
+
+"silent! so a checkout without submodules initialised still opens cleanly
+silent! colorscheme gruvbox
 
 " Format the statusline
 set statusline=\ %{HasPaste()}%F%m%r%h\ %w\ \ CWD:\ %r%{CurDir()}%h\ \ \ Line:\ %l/%L:%c\
 
 function! CurDir()
-    let curdir = substitute(getcwd(), '/Users/arollyson/', "~/", "g")
-    return curdir
+    return fnamemodify(getcwd(), ':~')
 endfunction
 
 function! HasPaste()
@@ -47,12 +48,6 @@ function! HasPaste()
         return ''
     endif
 endfunction
-
-"highlight chars past 78 length
-"augroup vimrc_autocmds
-"  autocmd BufEnter * highlight OverLength ctermbg=darkgrey guibg=#592929
-"  autocmd BufEnter * match OverLength /\%78v.*/
-"augroup END
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Keybindings
@@ -64,10 +59,10 @@ let mapleader = ","
 let g:mapleader = ","
 
 "get rid of line numbers
-nmap <f1> :set number! number?<cr> 
+nmap <f1> :set number! number?<cr>
 
 "go into paste mode
-nmap <f2> :set paste! paste?<cr>            
+nmap <f2> :set paste! paste?<cr>
 
 "the forgot to sudo key combo
 cmap w!! w !sudo tee %

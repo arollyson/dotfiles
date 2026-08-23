@@ -4,8 +4,8 @@
     whitespace = fix,-indent-with-non-tab,trailing-space,cr-at-eol
     excludesfile = ~/.gitignore
 
-[web]
-	browser = google-chrome
+[init]
+    defaultBranch = main
 
 [push]
   default = current
@@ -24,14 +24,14 @@
     tool = vimdiff
 
 [color]
-    branch = always
-    diff = always
-    grep = always
-    interactive = always
+    branch = auto
+    diff = auto
+    grep = auto
+    interactive = auto
     pager = true
     showbranch = auto
     status = auto
-    ui = always
+    ui = auto
 
 [color "interactive"]
     error = red bold
@@ -77,7 +77,7 @@
     fo  = fetch origin
     # merge
     m   = merge
-    mom = merge origin/master
+    mom = "!git merge origin/$(git defaultbranch)"
     # push
     p   = push
     pa  = push --all
@@ -88,7 +88,14 @@
     rc  = rebase --continue
     ri  = rebase --interactive
     rs  = rebase --skip
-    rom = rebase origin/master
+    rom = "!git rebase origin/$(git defaultbranch)"
+
+    # Resolve the remote's default branch instead of assuming master. Falls
+    # back to main when origin/HEAD isn't set locally (git remote set-head
+    # origin -a fixes that). The default is applied before the prefix is
+    # stripped: a pipeline's exit status is the last command's, so sed
+    # succeeding on empty input would swallow any trailing || fallback.
+    defaultbranch = "!b=$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null); printf \"%s\\n\" \"${b:-origin/main}\" | sed \"s@^origin/@@\""
 
     # commit
     c      = commit -v
@@ -141,8 +148,8 @@
 	process = git-lfs filter-process
 	required = true
 [credential "https://github.com"]
-	helper = 
+	helper =
 	helper = !gh auth git-credential
 [credential "https://gist.github.com"]
-	helper = 
+	helper =
 	helper = !gh auth git-credential

@@ -1,7 +1,12 @@
 #!/usr/bin/env zsh
 
-# iterm2 integration
-test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
+# The `code` CLI ships inside the VS Code app bundle rather than on PATH.
+_vscode_bin="/Applications/Visual Studio Code.app/Contents/Resources/app/bin"
+[[ -d $_vscode_bin ]] && path+=("$_vscode_bin")
+unset _vscode_bin
 
-# vscode
-export PATH="$PATH:/Applications/Visual Studio Code.app/Contents/Resources/app/bin"
+# iTerm2 shell integration installs prompt hooks, so it only belongs in
+# interactive shells.
+if [[ -o interactive ]]; then
+    dotfiles_source_first "$HOME/.iterm2_shell_integration.zsh"
+fi

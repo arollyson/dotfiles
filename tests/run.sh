@@ -1,0 +1,163 @@
+#!/usr/bin/env bash
+#
+# Verification for these dotfiles. Installs into a scratch HOME and checks the
+# result, so it never touches the real one.
+#
+# CI runs this exact script, so a clean run here means a clean run there --
+# except for the macOS leg, which only CI can exercise.
+#
+# Usage: ./tests/run.sh
+
+set -euo pipefail
+
+REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRATCH="$(mktemp -d)"
+
+# Scoped deliberately: only ever removes the directory mktemp just handed us.
+cleanup() {
+  if [[ -n ${SCRATCH:-} && -d $SCRATCH && $SCRATCH == "${TMPDIR:-/tmp}"/* ]]; then
+    rm -rf -- "$SCRATCH"
+  fi
+}
+trap cleanup EXIT
+
+if [[ -t 1 ]]; then
+  C_OK=$'\033[0;32m' C_NO=$'\033[0;31m' C_OFF=$'\033[0m'
+else
+  C_OK="" C_NO="" C_OFF=""
+fi
+
+passed=0
+failed=0
+ok() {
+  printf '%sok    %s%s\n' "$C_OK" "$C_OFF" "$*"
+  passed=$((passed + 1))
+}
+no() {
+  printf '%snot ok%s %s\n' "$C_NO" "$C_OFF" "$*"
+  failed=$((failed + 1))
+}
+
+# A login shell is not an interactive one: .zshrc and .zshrc.d only run for the
+# latter, which needs a pty. script(1) is spelled differently per platform.
+interactive_output() {
+  local home=$1
+  if [[ $(uname -s) == Darwin ]]; then
+    HOME="$home" script -q /dev/null zsh -lic 'true' 2>&1 || true
+  else
+    HOME="$home" script -qec "zsh -lic 'true'" /dev/null 2>&1 || true
+  fi
+}
+
+command -v zsh >/dev/null 2>&1 || {
+  echo "zsh is required to run these tests" >&2
+  exit 1
+}
+command -v stow >/dev/null 2>&1 || {
+  echo "stow is required to run these tests" >&2
+  exit 1
+}
+
+HOME_A="$SCRATCH/home"
+mkdir -p "$HOME_A"
+
+# --- install ---------------------------------------------------------------
+if HOME="$HOME_A" "$REPO_ROOT/bootstrap.sh" \
+  --no-packages --no-shell --git-profile personal >"$SCRATCH/install.log" 2>&1; then
+  ok "bootstrap --no-packages succeeds"
+else
+  no "bootstrap --no-packages failed"
+  cat "$SCRATCH/install.log" >&2
+fi
+
+for link in .zshenv .zprofile .zshrc .zshrc.d .zprofile.d .vimrc .tmux.conf .gitconfig; do
+  if [[ -L $HOME_A/$link ]]; then
+    ok "linked $link"
+  else
+    no "missing symlink $link"
+  fi
+done
+
+if HOME="$HOME_A" "$REPO_ROOT/bootstrap.sh" \
+  --no-packages --no-shell >>"$SCRATCH/install.log" 2>&1; then
+  ok "rerunning bootstrap is idempotent"
+else
+  no "rerunning bootstrap failed"
+fi
+
+# --- shell startup ---------------------------------------------------------
+# No Homebrew plugins exist in a scratch HOME, which is exactly the devcontainer
+# case: startup must be silent, not merely survivable.
+login_err="$(HOME="$HOME_A" zsh -l -c 'true' 2>&1 >/dev/null || true)"
+if [[ -z $login_err ]]; then
+  ok "login shell starts silently"
+else
+  no "login shell wrote to stderr: $login_err"
+fi
+
+inter_out="$(interactive_output "$HOME_A" | tr -d '\r' | sed '/^$/d')"
+if [[ -z $inter_out ]]; then
+  ok "interactive shell starts silently"
+else
+  no "interactive shell produced output: $inter_out"
+fi
+
+path_all="$(HOME="$HOME_A" zsh -l -c 'print -r -- $PATH' | tr ':' '\n' | grep -c . || true)"
+path_uniq="$(HOME="$HOME_A" zsh -l -c 'print -r -- $PATH' | tr ':' '\n' | grep . | sort -u | wc -l | tr -d ' ')"
+if [[ $path_all -eq $path_uniq ]]; then
+  ok "PATH has no duplicates ($path_all entries)"
+else
+  no "PATH has duplicates ($path_all entries, $path_uniq unique)"
+fi
+
+if [[ -z "$(HOME="$HOME_A" zsh -l -c 'print -r -- $PATH' | tr ':' '\n' | grep -x '/bin' | sed -n 2p)" ]]; then
+  ok "no duplicated bare /bin from an unset GOROOT"
+else
+  no "bare /bin appears more than once in PATH"
+fi
+
+# --- git -------------------------------------------------------------------
+if [[ -n "$(HOME="$HOME_A" git config --get user.email || true)" ]]; then
+  ok "git identity resolves through .gitconfig_user"
+else
+  no "git identity is unset"
+fi
+
+# The default-branch alias must fall back rather than yielding "origin/".
+norepo="$SCRATCH/norepo"
+mkdir -p "$norepo"
+git -C "$norepo" init -q .
+git -C "$norepo" commit -q --allow-empty -m init
+branch="$(git -C "$norepo" -c include.path="$REPO_ROOT/git/.gitconfig" defaultbranch || true)"
+if [[ $branch == "main" ]]; then
+  ok "defaultbranch falls back to main without origin/HEAD"
+else
+  no "defaultbranch returned '$branch', expected 'main'"
+fi
+
+# --- vim -------------------------------------------------------------------
+if HOME="$HOME_A" vim -N -es -c 'qa!' </dev/null >/dev/null 2>&1; then
+  ok "vim loads the config"
+else
+  no "vim failed to load the config"
+fi
+
+# --- failure modes ---------------------------------------------------------
+# A real file where a symlink belongs must abort loudly, not clobber it.
+HOME_B="$SCRATCH/conflict"
+mkdir -p "$HOME_B"
+echo "pre-existing" >"$HOME_B/.zshrc"
+if HOME="$HOME_B" "$REPO_ROOT/bootstrap.sh" \
+  --no-packages --no-shell --git-profile personal >/dev/null 2>&1; then
+  no "stow conflict was not reported"
+else
+  ok "stow conflict exits non-zero"
+fi
+if [[ "$(cat "$HOME_B/.zshrc")" == "pre-existing" ]]; then
+  ok "conflicting file left untouched"
+else
+  no "conflicting file was overwritten"
+fi
+
+printf '\n%s passed, %s failed\n' "$passed" "$failed"
+[[ $failed -eq 0 ]]

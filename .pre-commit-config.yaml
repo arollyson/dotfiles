@@ -1,0 +1,73 @@
+# Run with: prek run --all-files
+# Install with: prek install
+# Update pinned revs with: prek auto-update --cooldown-days 7
+---
+exclude: '^vim/\.vim/pack/'
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-merge-conflict
+      - id: check-added-large-files
+      # A dotfiles repo gets cloned onto case-insensitive (macOS) and
+      # CRLF-prone filesystems, so both of these are load-bearing here.
+      - id: check-case-conflict
+      - id: mixed-line-ending
+        args: [--fix=lf]
+      - id: check-yaml
+      # stow turns this repo into a tree of symlinks; a broken or
+      # accidentally-materialised one is worth catching before it ships.
+      - id: check-symlinks
+      - id: destroyed-symlinks
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+        # The zsh files carry shebangs as an editor/ft hint but are sourced,
+        # never executed, so they are deliberately not +x.
+        exclude: '^zsh/'
+
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1
+    hooks:
+      - id: shellcheck
+        exclude_types: [zsh]
+
+  - repo: https://github.com/scop/pre-commit-shfmt
+    rev: v3.13.1-1
+    hooks:
+      - id: shfmt
+        args: [-i, '2', -w]
+        exclude_types: [zsh]
+
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.12
+    hooks:
+      - id: actionlint
+
+  - repo: https://github.com/zizmorcore/zizmor-pre-commit
+    rev: v1.29.0
+    hooks:
+      - id: zizmor
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+
+  - repo: local
+    hooks:
+      - id: zsh-syntax
+        name: zsh -n
+        description: Parse every zsh file so a typo cannot break login shells.
+        language: system
+        # zsh -n takes a single script; extra arguments become positional
+        # parameters and are silently ignored, hence the loop.
+        entry: bash -c 'for f in "$@"; do zsh -n "$f" || exit 1; done' --
+        # Matched by path, not by type: identify only reads shebangs from
+        # executable files, so the sourced fragments under .zprofile.d/ come
+        # back as plain text and a types_or: [zsh] filter would skip them --
+        # which is precisely where a syntax error breaks every login shell.
+        files: '^zsh/'
+        types: [text]
