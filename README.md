@@ -38,6 +38,20 @@ It needs `stow` and `git` on PATH; nothing else.
 
 Reruns are idempotent.
 
+### Upgrading an existing host
+
+`git pull && ./bootstrap.sh --no-packages` picks up new packages in place: stow
+restows what it already owns and adds anything new. It stops if a config the
+repo now manages exists as a real file on that host -- most likely
+`~/.claude/*`, which any machine that has run Claude Code will already have.
+
+```sh
+git pull
+./bootstrap.sh --backup          # moves those aside as <file>.<timestamp>.bak
+```
+
+`--backup` never deletes anything and never touches files inside the repo.
+
 ## Layout
 
 ```

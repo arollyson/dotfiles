@@ -23,6 +23,7 @@ BREW_INSTALLER_REF=b9990527570f7e07d5393f37447b8293ec0a78de
 install_packages=1
 git_profile=""
 set_shell=1
+backup=0
 
 if [[ -t 1 ]]; then
   C_INFO=$'\033[0;32m' C_WARN=$'\033[0;33m' C_ERR=$'\033[0;31m' C_OFF=$'\033[0m'
@@ -47,6 +48,9 @@ Options:
   --git-profile NAME    Select the git identity to include (personal | work).
                         Prompts when omitted on a terminal.
   --no-shell            Don't try to make zsh the login shell.
+  --backup              Move aside any real file where a symlink belongs,
+                        keeping it as <file>.<timestamp>.bak. Use when
+                        upgrading a host that already has its own configs.
   -h, --help            Show this message.
 EOF
 }
@@ -55,6 +59,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
   --no-packages) install_packages=0 ;;
   --no-shell) set_shell=0 ;;
+  --backup) backup=1 ;;
   --git-profile)
     [[ $# -ge 2 ]] || die "--git-profile needs an argument"
     git_profile="$2"
@@ -161,18 +166,51 @@ install_brew_packages() {
   brew bundle install --file="$REPO_ROOT/Brewfile"
 }
 
+# Move a real file aside wherever a package is about to install a symlink.
+# Nothing is deleted. Upgrading a host that has already run Claude Code, say,
+# would otherwise stop dead on ~/.claude/CLAUDE.md and friends.
+backup_conflicts() {
+  local pkg file rel target resolved stamp moved=0
+  stamp="$(date +%Y%m%d%H%M%S)"
+  for pkg in "$@"; do
+    while IFS= read -r -d '' file; do
+      rel="${file#"$REPO_ROOT/$pkg/"}"
+      target="$HOME/$rel"
+      if [[ -e $target && ! -L $target ]]; then
+        # A folded package directory is a single symlink, which makes every
+        # file under it look like a real file in $HOME. Resolving the path
+        # shows those already live in the repo; renaming them would corrupt it.
+        resolved="$(cd -- "$(dirname -- "$target")" && pwd -P)/$(basename -- "$target")"
+        if [[ $resolved == "$REPO_ROOT"/* ]]; then
+          continue
+        fi
+        log "Backing up $target -> $target.$stamp.bak"
+        mv -- "$target" "$target.$stamp.bak"
+        moved=$((moved + 1))
+      fi
+    done < <(find "$REPO_ROOT/$pkg" -type f -print0)
+  done
+  if [[ $moved -gt 0 ]]; then
+    log "Backed up $moved existing file(s); originals kept alongside"
+  fi
+}
+
 link_dotfiles() {
   command -v stow >/dev/null 2>&1 ||
     die "stow not found. Install it (brew install stow / apt install stow) or rerun without --no-packages."
+
+  if [[ $backup -eq 1 ]]; then
+    backup_conflicts "${STOW_PACKAGES[@]}" "${NO_FOLD_PACKAGES[@]}"
+  fi
 
   log "Linking dotfiles with stow"
   # --restow removes stale links first, which makes reruns idempotent and picks
   # up files that moved between packages.
   if ! stow --dir="$REPO_ROOT" --target="$HOME" --restow "${STOW_PACKAGES[@]}"; then
-    die "stow reported conflicts. Move or delete the offending files in \$HOME and rerun."
+    die "stow reported conflicts. Rerun with --backup to move them aside, or clear them by hand."
   fi
   if ! stow --dir="$REPO_ROOT" --target="$HOME" --restow --no-folding "${NO_FOLD_PACKAGES[@]}"; then
-    die "stow reported conflicts. Move or delete the offending files in \$HOME and rerun."
+    die "stow reported conflicts. Rerun with --backup to move them aside, or clear them by hand."
   fi
 }
 

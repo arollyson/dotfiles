@@ -250,5 +250,47 @@ else
   no "conflicting file was overwritten"
 fi
 
+# --- upgrade path ------------------------------------------------------------
+# Installing over a host that already has its own configs. --backup must move
+# the real files aside, and must never touch files that only *look* real in
+# $HOME because a folded package directory points at them inside the repo.
+HOME_C="$SCRATCH/upgrade"
+mkdir -p "$HOME_C"
+# Install once so the host has folded package directories (~/.zprofile.d is a
+# single symlink into the repo). That folding is what made an earlier version
+# of --backup rename files inside the repo itself.
+HOME="$HOME_C" "$REPO_ROOT/bootstrap.sh" \
+  --no-packages --no-shell --git-profile personal >/dev/null 2>&1
+# Then make one config a real file again, as a host with its own would have.
+rm -f "$HOME_C/.claude/CLAUDE.md"
+echo '# pre-existing' >"$HOME_C/.claude/CLAUDE.md"
+repo_baks_before="$(find "$REPO_ROOT" -name '*.bak' -not -path '*/.git/*' | wc -l | tr -d ' ')"
+
+if HOME="$HOME_C" "$REPO_ROOT/bootstrap.sh" \
+  --no-packages --no-shell --backup --git-profile personal >/dev/null 2>&1; then
+  ok "--backup installs over pre-existing config"
+else
+  no "--backup run failed"
+fi
+
+if [[ -L $HOME_C/.claude/CLAUDE.md ]]; then
+  ok "pre-existing CLAUDE.md replaced by a symlink"
+else
+  no "CLAUDE.md was not linked"
+fi
+
+if compgen -G "$HOME_C/.claude/CLAUDE.md.*.bak" >/dev/null; then
+  ok "original CLAUDE.md kept as a backup"
+else
+  no "original CLAUDE.md was not backed up"
+fi
+
+repo_baks_after="$(find "$REPO_ROOT" -name '*.bak' -not -path '*/.git/*' | wc -l | tr -d ' ')"
+if [[ $repo_baks_before -eq $repo_baks_after ]]; then
+  ok "--backup left the repo untouched"
+else
+  no "--backup renamed files inside the repo ($repo_baks_before -> $repo_baks_after)"
+fi
+
 printf '\n%s passed, %s failed\n' "$passed" "$failed"
 [[ $failed -eq 0 ]]
