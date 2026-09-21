@@ -75,7 +75,16 @@ all of that runtime state into version control.
 `claude/.claude/`, so a mis-stow still cannot commit anything private. The test
 suite asserts the directory is never folded.
 
-The statusline needs `jq`, which the Brewfile already installs.
+Auto mode writes an `autoMode` block into `settings.json` describing the local
+network, internal hostnames and private repos, and Claude Code only reads it
+from that one file. `.gitattributes` routes the file through a `jq` clean
+filter that drops the block on the way into the index; `bootstrap.sh` registers
+the filter in `.git/config` on every run, and a prek hook rejects the commit if
+the staged copy still contains it. The working tree keeps the full file, so
+auto mode keeps working.
+
+The statusline and the clean filter need `jq`, which the Brewfile already
+installs.
 
 ### zsh load order
 
@@ -108,7 +117,8 @@ prek auto-update --cooldown-days 7
 ```
 
 Covered: shellcheck and shfmt on bash, `zsh -n` on every zsh fragment,
-actionlint and zizmor on workflows, gitleaks on staged changes, plus whitespace,
+actionlint and zizmor on workflows, gitleaks on staged changes, a check that
+the staged `settings.json` carries no `autoMode` block, plus whitespace,
 line-ending, case-conflict and symlink hygiene.
 
 ## Tests
@@ -120,7 +130,8 @@ line-ending, case-conflict and symlink hygiene.
 Installs into a throwaway `HOME` and checks the result: symlinks land, reruns
 are idempotent, both login and interactive shells start silently with no
 Homebrew present, `PATH` has no duplicates, the git identity resolves, vim
-loads, and a stow conflict aborts without clobbering anything.
+loads, the `settings.json` clean filter strips `autoMode`, and a stow conflict
+aborts without clobbering anything.
 
 CI runs this same script on Linux and macOS, so a clean local run means a clean
 CI run apart from the macOS leg.

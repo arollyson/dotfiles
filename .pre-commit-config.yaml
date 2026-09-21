@@ -71,3 +71,20 @@ repos:
         # which is precisely where a syntax error breaks every login shell.
         files: '^zsh/'
         types: [text]
+
+      - id: no-automode-in-settings
+        name: settings.json has no autoMode block
+        description: >-
+          Backstop for the strip-automode clean filter. Checks the staged
+          copy, not the working tree, which legitimately holds the block.
+        language: system
+        entry: >-
+          bash -c 'for f in "$@"; do
+            if git show ":$f" | grep -q "\"autoMode\""; then
+              echo "$f: staged copy contains autoMode (local network layout," >&2;
+              echo "hostnames, private repos). Run ./bootstrap.sh --no-packages" >&2;
+              echo "to register the clean filter, then git add it again." >&2;
+              exit 1;
+            fi;
+          done' --
+        files: '^claude/\.claude/settings\.json$'

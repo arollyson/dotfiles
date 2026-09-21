@@ -121,6 +121,18 @@ init_submodules() {
     warn "submodule fetch failed; continuing without the vim colorscheme"
 }
 
+# Git filters live in .git/config, so register the privacy filter in every clone.
+# `required` makes a missing jq fail the add instead of leaking local metadata.
+setup_git_filters() {
+  git -C "$REPO_ROOT" rev-parse --git-dir >/dev/null 2>&1 || {
+    warn "not a git checkout; skipping git filter setup"
+    return 0
+  }
+  log "Registering the settings.json clean filter"
+  git -C "$REPO_ROOT" config filter.strip-automode.clean "jq --indent 2 'del(.autoMode)'"
+  git -C "$REPO_ROOT" config filter.strip-automode.required true
+}
+
 install_linux_prereqs() {
   # Homebrew on Linux needs a compiler and a few basics before it will run.
   local pkgs=(build-essential curl file git procps stow)
@@ -283,6 +295,7 @@ main() {
   log "Bootstrapping dotfiles ($DOTFILES_OS) from $REPO_ROOT"
 
   init_submodules
+  setup_git_filters
 
   if [[ $install_packages -eq 1 ]]; then
     [[ $DOTFILES_OS == linux ]] && install_linux_prereqs

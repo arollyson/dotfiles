@@ -142,6 +142,23 @@ else
   no "statusline.sh is not executable"
 fi
 
+# Exercise the filter itself, not merely the config line bootstrap wrote.
+filter_cmd="$(git -C "$REPO_ROOT" config --get filter.strip-automode.clean || true)"
+if [[ -z $filter_cmd ]]; then
+  no "strip-automode clean filter is not registered"
+elif ! command -v jq >/dev/null 2>&1; then
+  no "strip-automode clean filter needs jq, which is not installed"
+else
+  filtered="$(printf '{"model":"x","autoMode":{"environment":["secret"]}}' | sh -c "$filter_cmd")"
+  if [[ $filtered == *autoMode* || $filtered == *secret* ]]; then
+    no "strip-automode clean filter left autoMode in place: $filtered"
+  elif [[ $filtered != *'"model": "x"'* ]]; then
+    no "strip-automode clean filter mangled the rest of the file: $filtered"
+  else
+    ok "strip-automode clean filter drops autoMode"
+  fi
+fi
+
 for link in .zshenv .zprofile .zshrc .zshrc.d .zprofile.d .vimrc .tmux.conf .gitconfig; do
   if [[ -L $HOME_A/$link ]]; then
     ok "linked $link"
