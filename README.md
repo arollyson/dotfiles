@@ -226,13 +226,13 @@ wildcard fallback chains take precedence over role chains and are preserved.
 | Workload | Model | Effort |
 | --- | --- | --- |
 | Primary, planning, deep work, general task agents | Claude Opus 5.5 | high |
-| Code/security review | GPT-6.1 Sol | high |
+| Code/security review | GPT-6 Astra | high |
 | Small tasks, scouts, mechanical tasks, tiny helpers | GPT-6 Luna | low |
 | Background advisor | GPT-6.1 Sol | medium |
 
 The installed catalog has no GPT-6.1 Luna; the small role explicitly uses GPT-6
 Luna. Model selections live in the blueprint, not embedded in custom agent
-prompts. Cross-provider role fallbacks are configured: Opus to Sol, review Sol
+prompts. Cross-provider role fallbacks are configured: Opus to Sol, review Astra
 to Opus, small Luna to Sonnet, and advisor Sol to Sonnet. One-shot extension
 completions use the small role with low effort; they are not the full agent retry
 loop.

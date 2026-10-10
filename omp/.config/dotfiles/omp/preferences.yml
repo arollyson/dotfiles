@@ -6,7 +6,7 @@ modelRoles:
   task: '@default'
   smol: openai-codex/gpt-6-luna:low
   tiny: openai-codex/gpt-6-luna:low
-  review: openai-codex/gpt-6.1-sol:high
+  review: openai-codex/gpt-6-astra:high
   advisor: openai-codex/gpt-6.1-sol:medium
 task:
   agentModelOverrides:
