@@ -1,11 +1,13 @@
 #!/usr/bin/env zsh
 # Interactive shell configuration.
-
-# Non-login interactive shells never run .zprofile, so pick it up here. The
-# flag it sets means a login shell does not run it twice.
-if [[ -z ${_DOTFILES_ZPROFILE_LOADED:-} && -r $HOME/.zprofile ]]; then
+#
+# Optional machine-local loaders may return false. The shared success marker,
+# not that incidental status, determines whether dependent setup can proceed.
+if (( ! ${+_DOTFILES_PROFILE_LOADED} )); then
     source "$HOME/.zprofile"
 fi
+(( ${+_DOTFILES_PROFILE_LOADED} )) || return 1
+
 
 export CLICOLOR=1
 export ZSH_CACHE_DIR=$HOME/.zsh/cache

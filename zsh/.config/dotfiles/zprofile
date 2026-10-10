@@ -1,0 +1,84 @@
+# Login and interactive shells can both load this profile.
+(( ${+_DOTFILES_PROFILE_LOADED} )) && return 0
+
+# .zshenv gives path/fpath unique semantics; retain that guarantee when this
+# shared profile is sourced directly as well.
+typeset -U path fpath
+[[ -d "$HOME/.docker/bin" ]] && path+=("$HOME/.docker/bin")
+
+# Homebrew is optional: native distro packages and slim containers work too.
+# An installed but failing Brew is different from an absent one.
+case "$(uname -s)" in
+    Darwin)
+        export DOTFILES_OS=osx
+        _brew_candidates=(/opt/homebrew/bin/brew /usr/local/bin/brew)
+    ;;
+    Linux)
+        export DOTFILES_OS=linux
+        _brew_candidates=(/home/linuxbrew/.linuxbrew/bin/brew "$HOME/.linuxbrew/bin/brew")
+    ;;
+    *)
+        export DOTFILES_OS=unknown
+        _brew_candidates=()
+    ;;
+esac
+
+_brew_command=''
+if [[ ${DOTFILES_RUNTIME:-} == native ]]; then
+    # Explicit native mode also works on hosts with Brew on PATH. Do not probe
+    # it or inherit its plugin prefix from a parent shell.
+    unset BREW_PREFIX DOTFILES_BREW_PATH
+else
+    _brew_command="${commands[brew]:-}"
+    if [[ -z $_brew_command ]]; then
+        for _brew_candidate in "${_brew_candidates[@]}"; do
+            if [[ -x $_brew_candidate ]]; then
+                _brew_command="$_brew_candidate"
+                break
+            fi
+        done
+    fi
+fi
+unset _brew_candidates _brew_candidate
+
+if [[ -n $_brew_command ]]; then
+    _brew_shellenv="$("$_brew_command" shellenv)" || {
+        print -u2 "Homebrew shellenv failed; repair Homebrew or rerun the dotfiles bootstrap."
+        unset _brew_command _brew_shellenv
+        return 1
+    }
+    eval "$_brew_shellenv" || {
+        print -u2 "Homebrew shellenv could not initialize Zsh; repair Homebrew or rerun the dotfiles bootstrap."
+        unset _brew_command _brew_shellenv
+        return 1
+    }
+    BREW_PREFIX="$("$_brew_command" --prefix)" || {
+        print -u2 "Homebrew prefix lookup failed; repair Homebrew or rerun the dotfiles bootstrap."
+        unset _brew_command _brew_shellenv
+        return 1
+    }
+    export BREW_PREFIX
+    export DOTFILES_BREW_PATH="$BREW_PREFIX"
+    for _brew_completion in \
+        "$BREW_PREFIX/share/zsh/site-functions" \
+        "$BREW_PREFIX/share/zsh-completions"
+    do
+        [[ -d $_brew_completion ]] && fpath=("$_brew_completion" $fpath)
+    done
+    unset _brew_completion
+fi
+unset _brew_command _brew_shellenv
+
+# Plugins and aliases belong to .zshrc.d, never the login environment.
+# An OS may have no shared profile (Linux needs no platform-specific setup).
+if [[ -r "$HOME/.config/dotfiles/zprofile.d/os.$DOTFILES_OS" ]]; then
+    source "$HOME/.config/dotfiles/zprofile.d/os.$DOTFILES_OS"
+fi
+
+# Source shared environment settings.
+for _fragment in "$HOME"/.config/dotfiles/zprofile.d/env.*(N); do
+    source "$_fragment"
+done
+unset _fragment
+
+typeset -g _DOTFILES_PROFILE_LOADED=1

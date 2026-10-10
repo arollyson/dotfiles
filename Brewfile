@@ -39,7 +39,7 @@ brew "zsh-completions"
 brew "zsh-syntax-highlighting"
 brew "zsh-history-substring-search"
 brew "z"
-cask "font-hack-nerd-font"
+cask "font-hack-nerd-font" if OS.mac?
 
 brew "pinentry-mac" if OS.mac?
 cask "1password" if OS.mac?

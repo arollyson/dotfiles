@@ -1,0 +1,6 @@
+# >>> dotfiles managed >>>
+# Shared settings are versioned; this entrypoint stays machine-local.
+[include]
+    path = ~/.config/dotfiles/gitconfig
+    path = ~/.config/dotfiles-local/gitconfig
+# <<< dotfiles managed <<<

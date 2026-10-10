@@ -141,15 +141,23 @@
     rem = remote rename
 
 [include]
-    path = ~/.gitconfig_user
+    path = ~/.config/dotfiles/gitconfig_personal
+
+[init]
+	defaultBranch = main
+
 [filter "lfs"]
-	clean = git-lfs clean -- %f
-	smudge = git-lfs smudge -- %f
-	process = git-lfs filter-process
-	required = true
+    clean = git-lfs clean -- %f
+    smudge = git-lfs smudge -- %f
+    process = git-lfs filter-process
+    required = true
+
+# A local host-specific helper can replace these defaults with an empty helper
+# followed by its preferred helper in ~/.config/dotfiles-local/gitconfig.
 [credential "https://github.com"]
-	helper =
-	helper = !gh auth git-credential
+    helper =
+    helper = !gh auth git-credential
+
 [credential "https://gist.github.com"]
-	helper =
-	helper = !gh auth git-credential
+    helper =
+    helper = !gh auth git-credential

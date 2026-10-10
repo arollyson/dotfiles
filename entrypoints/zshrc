@@ -1,0 +1,7 @@
+# >>> dotfiles managed >>>
+# Shared settings are versioned; this entrypoint stays machine-local.
+source "$HOME/.config/dotfiles/zshrc"
+if [[ -r "$HOME/.config/dotfiles-local/interactive.zsh" ]]; then
+    source "$HOME/.config/dotfiles-local/interactive.zsh"
+fi
+# <<< dotfiles managed <<<

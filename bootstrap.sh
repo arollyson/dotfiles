@@ -1,315 +1,257 @@
 #!/usr/bin/env bash
-#
-# Install these dotfiles on Linux or macOS.
-#
-# The package install and the config linking are independent: --no-packages
-# links configs only, which is what devcontainers and locked-down hosts want.
-
 set -euo pipefail
+set -E
 
-REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-STOW_PACKAGES=(git tmux vim zsh)
-
-# Stowed with --no-folding. ~/.claude holds credentials, session transcripts
-# and gigabytes of job state; if stow folds the directory then ~/.claude itself
-# becomes a symlink into this repo and Claude writes all of that into version
-# control. Unfolded, only the named config files are linked.
-NO_FOLD_PACKAGES=(claude)
-
-# Pinned so a compromised upstream installer cannot silently change what runs.
-# Bump deliberately: https://github.com/Homebrew/install/commits/master
-BREW_INSTALLER_REF=b9990527570f7e07d5393f37447b8293ec0a78de
-
-install_packages=1
-git_profile=""
-set_shell=1
-backup=0
-
-if [[ -t 1 ]]; then
-  C_INFO=$'\033[0;32m' C_WARN=$'\033[0;33m' C_ERR=$'\033[0;31m' C_OFF=$'\033[0m'
-else
-  C_INFO="" C_WARN="" C_ERR="" C_OFF=""
-fi
-
-log() { printf '%s==>%s %s\n' "$C_INFO" "$C_OFF" "$*"; }
-warn() { printf '%s==>%s %s\n' "$C_WARN" "$C_OFF" "$*" >&2; }
-die() {
-  printf '%serror:%s %s\n' "$C_ERR" "$C_OFF" "$*" >&2
+fail() {
+  printf 'bootstrap: %s\n' "$*" >&2
   exit 1
 }
 
 usage() {
-  cat <<'EOF'
-Usage: ./bootstrap.sh [options]
+  cat <<'USAGE'
+Usage: bootstrap.sh [options]
 
-Options:
-  --no-packages         Link configs only; skip Homebrew and all package installs.
-                        Use this in devcontainers and CI.
-  --git-profile NAME    Select the git identity to include (personal | work).
-                        Prompts when omitted on a terminal.
-  --no-shell            Don't try to make zsh the login shell.
-  --backup              Move aside any real file where a symlink belongs,
-                        keeping it as <file>.<timestamp>.bak. Use when
-                        upgrading a host that already has its own configs.
-  -h, --help            Show this message.
-EOF
+Install dependencies, initialize Vim submodules, and install shared dotfiles.
+By default, register Zsh and make it the current account's login shell.
+
+  --no-packages          Install configs only; do not discover or install Homebrew.
+  --no-change-shell      Leave the account's login shell unchanged.
+  --no-shell             Same as --no-change-shell.
+  --backup               Back up conflicting Stow targets outside the checkout.
+  --git-profile NAME     Select personal or machine-local work identity.
+  --migrate-local        Move legacy env.work into machine-local configuration.
+  --help, -h             Show this help.
+
+Full package installation requires a non-root development account.
+Config-only installation supports root containers. Any required sudo access must
+already work with sudo -n; this script never asks for a password or opens a shell.
+USAGE
 }
 
+change_shell=true
+install_packages=true
+installer_args=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
-  --no-packages) install_packages=0 ;;
-  --no-shell) set_shell=0 ;;
-  --backup) backup=1 ;;
+  --no-packages) install_packages=false ;;
+  --no-change-shell | --no-shell) change_shell=false ;;
+  --backup | --migrate-local) installer_args+=("$1") ;;
   --git-profile)
-    [[ $# -ge 2 ]] || die "--git-profile needs an argument"
-    git_profile="$2"
+    [[ $# -ge 2 ]] || fail '--git-profile requires personal or work.'
+    case "$2" in
+    personal | work) installer_args+=(--git-profile "$2") ;;
+    *) fail '--git-profile requires personal or work.' ;;
+    esac
     shift
     ;;
-  -h | --help)
+  --help | -h)
     usage
     exit 0
     ;;
   *)
     usage >&2
-    die "unknown option: $1"
+    fail "Unknown option: $1"
     ;;
   esac
   shift
 done
 
-case "$(uname -s)" in
-Darwin) DOTFILES_OS=osx ;;
-Linux) DOTFILES_OS=linux ;;
-*) die "unsupported OS: $(uname -s) (Linux and macOS only)" ;;
-esac
-
-# Resolve how to run privileged commands, if at all. Containers often run as
-# root with no sudo; unprivileged CI has neither. Both must degrade to skipping
-# the privileged steps rather than failing the whole run.
-#
-# Note the ordering: `sudo -n true` failing only means credentials aren't
-# cached, not that sudo is unusable. On an ordinary account sudo works fine, it
-# just wants a password, so fall through to prompting whenever there's a
-# terminal to prompt on.
-if [[ $(id -u) -eq 0 ]]; then
-  SUDO=""
-  have_privileges=1
-elif ! command -v sudo >/dev/null 2>&1; then
-  SUDO=""
-  have_privileges=0
-elif sudo -n true 2>/dev/null; then
-  SUDO="sudo"
-  have_privileges=1
-elif [[ -t 0 ]]; then
-  SUDO="sudo"
-  have_privileges=1
-else
-  SUDO=""
-  have_privileges=0
+trap 'printf "bootstrap: command failed at line %s: %s\n" "$LINENO" "$BASH_COMMAND" >&2' ERR
+repo_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+account="$(id -un)"
+account_uid="$(id -u)"
+if [[ "$install_packages" == true && "$account_uid" == 0 ]]; then
+  fail 'Run package installation as the intended non-root development user (Homebrew does not support root installation). Use --no-packages --no-shell for root templates.'
 fi
 
-init_submodules() {
-  git -C "$REPO_ROOT" rev-parse --git-dir >/dev/null 2>&1 || {
-    warn "not a git checkout; skipping submodules (vim colorscheme will be missing)"
-    return 0
-  }
-  log "Fetching submodules"
-  # Non-fatal: this needs the network and a writable checkout, and neither is
-  # guaranteed on the locked-down hosts --no-packages targets. .vimrc already
-  # tolerates the colorscheme being absent.
-  git -C "$REPO_ROOT" submodule update --init --recursive ||
-    warn "submodule fetch failed; continuing without the vim colorscheme"
-}
+# Pin installer behavior; current upstream installers reject Intel macOS.
+homebrew_installer_ref=09c62fc577ec170172b0a184060f141a2c622dc1
 
-# Git filters live in .git/config, so register the privacy filter in every clone.
-# `required` makes a missing jq fail the add instead of leaking local metadata.
-setup_git_filters() {
-  git -C "$REPO_ROOT" rev-parse --git-dir >/dev/null 2>&1 || {
-    warn "not a git checkout; skipping git filter setup"
-    return 0
-  }
-  log "Registering the settings.json clean filter"
-  git -C "$REPO_ROOT" config filter.strip-automode.clean "jq --indent 2 'del(.autoMode)'"
-  git -C "$REPO_ROOT" config filter.strip-automode.required true
-}
-
-install_linux_prereqs() {
-  # Homebrew on Linux needs a compiler and a few basics before it will run.
-  local pkgs=(build-essential curl file git procps stow)
-
-  if ! command -v apt-get >/dev/null 2>&1; then
-    warn "no apt-get here; ensure these are installed by hand: ${pkgs[*]}"
-    return 0
-  fi
-  if [[ $have_privileges -eq 0 ]]; then
-    warn "no usable sudo; skipping apt install of: ${pkgs[*]}"
-    return 0
-  fi
-
-  log "Installing build prerequisites via apt"
-  $SUDO apt-get update -qq
-  $SUDO apt-get install -y --no-install-recommends "${pkgs[@]}"
-}
-
-install_brew() {
-  if command -v brew >/dev/null 2>&1; then
-    log "Homebrew already installed"
-    return 0
-  fi
-
-  log "Installing Homebrew"
-  NONINTERACTIVE=1 /bin/bash -c \
-    "$(curl -fsSL "https://raw.githubusercontent.com/Homebrew/install/${BREW_INSTALLER_REF}/install.sh")"
-
-  local candidate
-  for candidate in /opt/homebrew/bin/brew /usr/local/bin/brew \
-    /home/linuxbrew/.linuxbrew/bin/brew "$HOME/.linuxbrew/bin/brew"; do
-    if [[ -x $candidate ]]; then
-      eval "$("$candidate" shellenv)"
-      return 0
-    fi
-  done
-
-  die "Homebrew installed but its binary was not found in any known prefix"
-}
-
-install_brew_packages() {
-  log "Installing Brewfile packages"
-  brew bundle install --file="$REPO_ROOT/Brewfile"
-}
-
-# Move a real file aside wherever a package is about to install a symlink.
-# Nothing is deleted. Upgrading a host that has already run Claude Code, say,
-# would otherwise stop dead on ~/.claude/CLAUDE.md and friends.
-backup_conflicts() {
-  local pkg file rel target resolved stamp moved=0
-  stamp="$(date +%Y%m%d%H%M%S)"
-  for pkg in "$@"; do
-    while IFS= read -r -d '' file; do
-      rel="${file#"$REPO_ROOT/$pkg/"}"
-      target="$HOME/$rel"
-      if [[ -e $target && ! -L $target ]]; then
-        # A folded package directory is a single symlink, which makes every
-        # file under it look like a real file in $HOME. Resolving the path
-        # shows those already live in the repo; renaming them would corrupt it.
-        resolved="$(cd -- "$(dirname -- "$target")" && pwd -P)/$(basename -- "$target")"
-        if [[ $resolved == "$REPO_ROOT"/* ]]; then
-          continue
-        fi
-        log "Backing up $target -> $target.$stamp.bak"
-        mv -- "$target" "$target.$stamp.bak"
-        moved=$((moved + 1))
-      fi
-    done < <(find "$REPO_ROOT/$pkg" -type f -print0)
-  done
-  if [[ $moved -gt 0 ]]; then
-    log "Backed up $moved existing file(s); originals kept alongside"
-  fi
-}
-
-link_dotfiles() {
-  command -v stow >/dev/null 2>&1 ||
-    die "stow not found. Install it (brew install stow / apt install stow) or rerun without --no-packages."
-
-  if [[ $backup -eq 1 ]]; then
-    backup_conflicts "${STOW_PACKAGES[@]}" "${NO_FOLD_PACKAGES[@]}"
-  fi
-
-  log "Linking dotfiles with stow"
-  # --restow removes stale links first, which makes reruns idempotent and picks
-  # up files that moved between packages.
-  if ! stow --dir="$REPO_ROOT" --target="$HOME" --restow "${STOW_PACKAGES[@]}"; then
-    die "stow reported conflicts. Rerun with --backup to move them aside, or clear them by hand."
-  fi
-  if ! stow --dir="$REPO_ROOT" --target="$HOME" --restow --no-folding "${NO_FOLD_PACKAGES[@]}"; then
-    die "stow reported conflicts. Rerun with --backup to move them aside, or clear them by hand."
-  fi
-}
-
-# ~/.gitconfig includes ~/.gitconfig_user, which selects an identity. Without
-# it git has no user.email and every commit fails.
-setup_git_identity() {
-  local target="$HOME/.gitconfig_user"
-
-  if [[ -e $target && -z $git_profile ]]; then
-    log "git identity already configured ($target)"
-    return 0
-  fi
-
-  if [[ -z $git_profile ]]; then
-    if [[ ! -t 0 ]]; then
-      warn "no git identity at $target and no terminal to prompt on."
-      warn "rerun with --git-profile personal|work, or create it by hand."
-      return 0
-    fi
-    local reply
-    read -r -p "git identity to use [personal/work]: " reply
-    git_profile="$reply"
-  fi
-
-  case "$git_profile" in
-  personal | work) ;;
-  *) die "unknown git profile '$git_profile' (expected: personal or work)" ;;
+case "$(uname -s)" in
+Darwin)
+  export DOTFILES_OS=osx
+  case "$(uname -m)" in
+  arm64) default_brew_prefix=/opt/homebrew ;;
+  x86_64)
+    default_brew_prefix=/usr/local
+    homebrew_installer_ref=6895ebe7fd7e90478237d4219823f9c74e5e76fd
+    ;;
+  *) fail 'Unsupported macOS architecture; Homebrew requires Apple Silicon or Intel.' ;;
   esac
+  ;;
+Linux)
+  export DOTFILES_OS=linux
+  default_brew_prefix=/home/linuxbrew/.linuxbrew
+  ;;
+*) fail 'Unsupported platform; this bootstrap supports macOS and Linux only.' ;;
+esac
 
-  [[ -e "$HOME/.gitconfig_$git_profile" ]] ||
-    die "$HOME/.gitconfig_$git_profile is missing; run the stow step first"
-
-  log "Setting git identity to '$git_profile'"
-  cat >"$target" <<EOF
-# Written by bootstrap.sh. Selects which identity ~/.gitconfig pulls in.
-[include]
-    path = ~/.gitconfig_$git_profile
-EOF
+require_command() {
+  command -v "$1" >/dev/null 2>&1 || fail "Missing $1. $2"
 }
 
-set_default_shell() {
-  local zsh_path
-  zsh_path="$(command -v zsh 2>/dev/null)" || {
-    warn "zsh not installed; leaving login shell alone"
-    return 0
-  }
-
-  if [[ ${SHELL:-} == "$zsh_path" ]]; then
-    log "zsh is already the login shell"
-    return 0
+sudo_checked=false
+require_sudo() {
+  [[ "$account_uid" != 0 ]] || return 0
+  if [[ "$sudo_checked" == false ]]; then
+    require_command sudo 'Arrange noninteractive sudo access for this account before retrying.'
+    sudo -n true </dev/null || fail 'Passwordless or pre-authorized sudo access is required. Arrange sudo -n access before retrying (or use --no-change-shell if only the shell change needs it).'
+    sudo_checked=true
   fi
-
-  # chsh refuses any shell that isn't listed in /etc/shells, and brew's zsh
-  # never is.
-  if ! grep -qxF "$zsh_path" /etc/shells 2>/dev/null; then
-    if [[ $have_privileges -eq 1 ]]; then
-      log "Registering $zsh_path in /etc/shells"
-      printf '%s\n' "$zsh_path" | $SUDO tee -a /etc/shells >/dev/null
-    else
-      warn "$zsh_path is not in /etc/shells and this run cannot edit it; skipping chsh"
-      return 0
-    fi
-  fi
-
-  log "Setting login shell to $zsh_path"
-  chsh -s "$zsh_path" || warn "chsh failed; set the login shell yourself"
 }
 
-main() {
-  log "Bootstrapping dotfiles ($DOTFILES_OS) from $REPO_ROOT"
-
-  init_submodules
-  setup_git_filters
-
-  if [[ $install_packages -eq 1 ]]; then
-    [[ $DOTFILES_OS == linux ]] && install_linux_prereqs
-    install_brew
-    install_brew_packages
+run_privileged() {
+  if [[ "$account_uid" == 0 ]]; then
+    "$@"
   else
-    log "Skipping package installation (--no-packages)"
+    require_sudo
+    sudo -n "$@"
   fi
-
-  link_dotfiles
-  setup_git_identity
-  [[ $set_shell -eq 1 ]] && set_default_shell
-
-  log "Done. Start a new shell, or run: exec zsh"
 }
 
-main "$@"
+find_brew() {
+  brew_binary="$(command -v brew || true)"
+  if [[ -n "$brew_binary" ]]; then
+    return 0
+  fi
+  local candidate
+  if [[ "$DOTFILES_OS" == osx ]]; then
+    for candidate in "$default_brew_prefix/bin/brew" /opt/homebrew/bin/brew /usr/local/bin/brew; do
+      if [[ -x "$candidate" ]]; then
+        brew_binary="$candidate"
+        return 0
+      fi
+    done
+  else
+    for candidate in "$default_brew_prefix/bin/brew" "$HOME/.linuxbrew/bin/brew"; do
+      if [[ -x "$candidate" ]]; then
+        brew_binary="$candidate"
+        return 0
+      fi
+    done
+  fi
+  return 1
+}
+
+read_login_shell() {
+  if [[ "$DOTFILES_OS" == osx ]]; then
+    require_command dscl 'The macOS Directory Service tool is required to read the current login shell.'
+    local shell_record shell_key
+    shell_record="$(dscl . -read "/Users/$account" UserShell)" || fail "Cannot read the login shell for $account from macOS Directory Service."
+    read -r shell_key current_shell <<<"$shell_record"
+    [[ "$shell_key" == UserShell: && -n "$current_shell" ]] || fail "Cannot determine the login shell for $account."
+  else
+    require_command getent 'Install the libc getent utility to read the current account login shell.'
+    local passwd_record record_account record_uid
+    passwd_record="$(getent passwd "$account_uid")" || fail "Cannot find the current account ($account, uid $account_uid) in the system account database."
+    IFS=: read -r record_account _ record_uid _ _ _ current_shell <<<"$passwd_record"
+    [[ "$record_account" == "$account" && "$record_uid" == "$account_uid" && -n "$current_shell" ]] || fail "Cannot determine the login shell for $account."
+  fi
+}
+
+shell_registered() {
+  [[ -r /etc/shells ]] && grep -Fxq -- "$1" /etc/shells
+}
+
+brew_installed=false
+if [[ "$install_packages" == true ]]; then
+  if find_brew; then
+    brew_installed=true
+    brew_prefix="$("$brew_binary" --prefix)"
+    [[ "$brew_prefix" == /* ]] || fail 'Homebrew returned an invalid installation prefix.'
+  else
+    brew_prefix="$default_brew_prefix"
+  fi
+  zsh_path="$brew_prefix/bin/zsh"
+else
+  zsh_path="$(command -v zsh || true)"
+  if [[ "$change_shell" == true && -z "$zsh_path" ]]; then
+    printf 'Zsh is not installed; leaving the login shell unchanged in config-only mode.\n' >&2
+    change_shell=false
+  fi
+fi
+
+# Check privileges before installing anything when a shell change is needed.
+if [[ "$change_shell" == true ]]; then
+  require_command chsh 'Install the system chsh utility or use --no-change-shell.'
+  read_login_shell
+  if [[ "$current_shell" != "$zsh_path" ]] || ! shell_registered "$zsh_path"; then
+    require_sudo
+  fi
+fi
+
+export NONINTERACTIVE=1
+export GIT_TERMINAL_PROMPT=0
+export CI=1
+if [[ "$install_packages" == true ]]; then
+  if [[ "$brew_installed" == false ]]; then
+    if [[ "$DOTFILES_OS" == linux ]]; then
+      require_command apt-get 'Fresh Linux Homebrew installation requires Debian/Ubuntu-style apt-get and build-essential, procps, curl, file, and git. Provision these and Homebrew separately on other Linux distributions, then retry.'
+      require_sudo
+      printf 'Installing Linux Homebrew prerequisites\n'
+      run_privileged env DEBIAN_FRONTEND=noninteractive apt-get update </dev/null
+      run_privileged env DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential procps curl file git </dev/null
+    else
+      require_sudo
+      require_command xcode-select 'Install the Xcode Command Line Tools before retrying.'
+      xcode-select -p >/dev/null 2>&1 || fail 'Install the Xcode Command Line Tools (xcode-select --install) before running this unattended bootstrap.'
+    fi
+    require_command curl 'Install curl before retrying the Homebrew installation.'
+    require_command git 'Install git before retrying the Homebrew installation.'
+    installer_dir="$(mktemp -d "${TMPDIR:-/tmp}/dotfiles-bootstrap.XXXXXX")"
+    trap 'rm -rf -- "$installer_dir"' EXIT
+    printf 'Installing Homebrew\n'
+    curl --fail --show-error --silent --location \
+      "https://raw.githubusercontent.com/Homebrew/install/$homebrew_installer_ref/install.sh" \
+      --output "$installer_dir/install.sh" </dev/null
+    /bin/bash "$installer_dir/install.sh" </dev/null
+    find_brew || fail "The Homebrew installer completed but brew was not found. Check $default_brew_prefix/bin/brew and your PATH."
+    brew_prefix="$("$brew_binary" --prefix)"
+    [[ "$brew_prefix" == /* ]] || fail 'Homebrew returned an invalid installation prefix.'
+  fi
+
+  # Capture shellenv separately so a failing brew command cannot be hidden by eval.
+  brew_environment="$("$brew_binary" shellenv)"
+  eval "$brew_environment"
+  export DOTFILES_BREW_PATH="$brew_prefix"
+  export BREW_PREFIX="$brew_prefix"
+  export PATH="$brew_prefix/bin:$brew_prefix/sbin:$PATH"
+
+  printf 'Installing Homebrew packages\n'
+  "$brew_binary" bundle install --file="$repo_dir/Brewfile" </dev/null
+  zsh_path="$brew_prefix/bin/zsh"
+else
+  printf 'Skipping package installation (--no-packages)\n'
+fi
+require_command git 'Install Git before bootstrapping dotfiles.'
+if git -C "$repo_dir" rev-parse --git-dir >/dev/null 2>&1; then
+  printf 'Registering the private Claude settings clean filter\n'
+  git -C "$repo_dir" config filter.strip-automode.clean "jq --indent 2 'del(.autoMode)'"
+  git -C "$repo_dir" config filter.strip-automode.required true
+  printf 'Initializing repository submodules\n'
+  if [[ "$install_packages" == true ]]; then
+    git -C "$repo_dir" submodule update --init --recursive </dev/null
+  elif ! git -C "$repo_dir" submodule update --init --recursive </dev/null; then
+    printf 'Submodule fetch failed; continuing config-only installation without missing Vim packages.\n' >&2
+  fi
+elif [[ "$install_packages" == true ]]; then
+  fail 'Full bootstrap requires a Git checkout to initialize Vim submodules.'
+else
+  printf 'Not a Git checkout; skipping submodule and repository filter setup.\n' >&2
+fi
+printf 'Installing shared dotfiles and local entrypoints\n'
+bash "$repo_dir/install.sh" ${installer_args[@]+"${installer_args[@]}"} </dev/null
+
+if [[ "$change_shell" == true ]]; then
+  [[ -x "$zsh_path" ]] || fail "Zsh was not installed at $zsh_path."
+  if ! shell_registered "$zsh_path"; then
+    require_sudo
+    printf '%s\n' "$zsh_path" | run_privileged tee -a /etc/shells >/dev/null
+  fi
+  if [[ "$current_shell" != "$zsh_path" ]]; then
+    require_sudo
+    printf 'Setting login shell for %s to %s\n' "$account" "$zsh_path"
+    run_privileged chsh -s "$zsh_path" "$account" </dev/null
+  fi
+fi
+printf 'Bootstrap complete. Start a new login session to use the installed settings.\n'

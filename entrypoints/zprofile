@@ -1,0 +1,7 @@
+# >>> dotfiles managed >>>
+# Shared settings are versioned; this entrypoint stays machine-local.
+source "$HOME/.config/dotfiles/zprofile" || return
+if [[ -r "$HOME/.config/dotfiles-local/env.zsh" ]]; then
+    source "$HOME/.config/dotfiles-local/env.zsh"
+fi
+# <<< dotfiles managed <<<

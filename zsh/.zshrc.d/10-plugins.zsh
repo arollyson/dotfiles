@@ -24,19 +24,23 @@ dotfiles_source_first \
 
 # --- fzf --------------------------------------------------------------------
 if (( $+commands[fzf] )); then
-    # fzf >= 0.48 ships its shell integration behind `--zsh`; older builds keep
-    # it as files on disk.
-    if fzf --zsh >/dev/null 2>&1; then
-        eval "$(fzf --zsh)"
-    else
-        dotfiles_source_first \
-            "$_brew/opt/fzf/shell/key-bindings.zsh" \
-            /usr/share/doc/fzf/examples/key-bindings.zsh \
-            /usr/share/fzf/key-bindings.zsh
-        dotfiles_source_first \
-            "$_brew/opt/fzf/shell/completion.zsh" \
-            /usr/share/doc/fzf/examples/completion.zsh \
-            /usr/share/fzf/completion.zsh
+    # Terminal-less automation may be explicitly interactive without a usable
+    # line editor. Leave filtering available but do not install ZLE widgets.
+    if [[ -o interactive && -o zle && -t 0 && -t 1 ]]; then
+        # fzf >= 0.48 has --zsh; older distro builds ship integration files.
+        if _fzf_integration="$(fzf --zsh 2>/dev/null)"; then
+            eval "$_fzf_integration"
+        else
+            dotfiles_source_first \
+                "$_brew/opt/fzf/shell/key-bindings.zsh" \
+                /usr/share/doc/fzf/examples/key-bindings.zsh \
+                /usr/share/fzf/key-bindings.zsh
+            dotfiles_source_first \
+                "$_brew/opt/fzf/shell/completion.zsh" \
+                /usr/share/doc/fzf/examples/completion.zsh \
+                /usr/share/fzf/completion.zsh
+        fi
+        unset _fzf_integration
     fi
 
     if (( $+commands[rg] )); then

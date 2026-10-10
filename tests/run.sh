@@ -12,6 +12,9 @@ set -euo pipefail
 
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 SCRATCH="$(mktemp -d)"
+# Native mode must never discover Brew or perform package/account operations.
+export DOTFILES_RUNTIME=native GIT_CONFIG_NOSYSTEM=1
+unset GIT_CONFIG_GLOBAL
 
 # Scoped deliberately: only ever removes the directory mktemp just handed us.
 cleanup() {
@@ -108,6 +111,7 @@ command -v stow >/dev/null 2>&1 || {
 
 HOME_A="$SCRATCH/home"
 mkdir -p "$HOME_A"
+export ZDOTDIR="$HOME_A"
 
 # --- install ---------------------------------------------------------------
 if HOME="$HOME_A" "$REPO_ROOT/bootstrap.sh" \
@@ -159,19 +163,36 @@ else
   fi
 fi
 
-for link in .zshenv .zprofile .zshrc .zshrc.d .zprofile.d .vimrc .tmux.conf .gitconfig; do
-  if [[ -L $HOME_A/$link ]]; then
-    ok "linked $link"
+for entrypoint in .zprofile .zshrc .gitconfig; do
+  if [[ -f $HOME_A/$entrypoint && ! -L $HOME_A/$entrypoint ]]; then
+    ok "$entrypoint is a regular managed entrypoint"
   else
-    no "missing symlink $link"
+    no "$entrypoint is not a regular managed entrypoint"
   fi
 done
+# Check consumer-visible settings, not incidental Stow symlink wiring.
+if [[ -r $HOME_A/.vimrc && -r $HOME_A/.tmux.conf && -r $HOME_A/.config/dotfiles/zprofile ]]; then
+  ok "shared shell, vim, and tmux configs are installed"
+else
+  no "shared configuration is missing"
+fi
+printf 'synthetic credential\n' >"$HOME_A/.claude/.credentials.json"
+mkdir -p "$HOME_A/.claude/projects/synthetic"
+printf 'synthetic transcript\n' >"$HOME_A/.claude/projects/synthetic/session.jsonl"
 
 if HOME="$HOME_A" "$REPO_ROOT/bootstrap.sh" \
   --no-packages --no-shell >>"$SCRATCH/install.log" 2>&1; then
   ok "rerunning bootstrap is idempotent"
 else
   no "rerunning bootstrap failed"
+fi
+if [[ $(cat "$HOME_A/.claude/.credentials.json") == 'synthetic credential' &&
+$(cat "$HOME_A/.claude/projects/synthetic/session.jsonl") == 'synthetic transcript' &&
+! -e $REPO_ROOT/claude/.claude/projects/synthetic &&
+! -e $REPO_ROOT/claude/.claude/.credentials.json ]]; then
+  ok "Claude runtime stays outside checkout and survives reruns"
+else
+  no "Claude runtime data was lost or entered checkout"
 fi
 
 # --- shell startup ---------------------------------------------------------
@@ -224,19 +245,62 @@ else
 fi
 
 # --- git -------------------------------------------------------------------
-if [[ -n "$(HOME="$HOME_A" git config --get user.email || true)" ]]; then
-  ok "git identity resolves through .gitconfig_user"
+personal_email="$(GIT_CONFIG_GLOBAL=/dev/null git config --file "$REPO_ROOT/git/.config/dotfiles/gitconfig_personal" --get user.email)"
+if [[ $(HOME="$HOME_A" git config --global --includes --get user.email) == "$personal_email" &&
+! -e $HOME_A/.gitconfig_user ]]; then
+  ok "shared personal identity resolves without obsolete identity shim"
 else
-  no "git identity is unset"
+  no "personal Git identity is unset or obsolete identity shim exists"
+fi
+
+# Explicit selection overrides identity only; local trust/signing/credentials
+# and unmarked entrypoint settings survive. Fixtures never contain work data.
+HOME_ID="$SCRATCH/identity"
+mkdir -p "$HOME_ID/.config/dotfiles-local"
+printf '[user]\n    name = Synthetic Local\n    email = synthetic@example.invalid\n    signingkey = synthetic-key\n[commit]\n    gpgsign = true\n[credential]\n    helper = synthetic-helper\n[safe]\n    directory = /synthetic/trusted\n' >"$HOME_ID/.config/dotfiles-local/gitconfig"
+printf '[user]\n    email = tail@example.invalid\n[dotfiles]\n    tail = retained\n' >"$HOME_ID/.gitconfig"
+cp "$HOME_ID/.config/dotfiles-local/gitconfig" "$SCRATCH/private-git-original"
+if HOME="$HOME_ID" "$REPO_ROOT/bootstrap.sh" --no-packages --no-shell >/dev/null 2>&1 &&
+  [[ $(HOME="$HOME_ID" git config --global --includes --get user.email) == tail@example.invalid ]]; then
+  ok "default identity preserves local precedence"
+else
+  no "default identity changed machine-local settings"
+fi
+if HOME="$HOME_ID" "$REPO_ROOT/bootstrap.sh" --no-packages --no-shell --git-profile work >/dev/null 2>&1 &&
+  HOME="$HOME_ID" "$REPO_ROOT/bootstrap.sh" --no-packages --no-shell >/dev/null 2>&1 &&
+  [[ $(HOME="$HOME_ID" git config --global --includes --get user.email) == synthetic@example.invalid ]]; then
+  ok "explicit work identity uses local config and persists on rerun"
+else
+  no "explicit work identity did not resolve or persist"
+fi
+if HOME="$HOME_ID" "$REPO_ROOT/bootstrap.sh" --no-packages --no-shell --git-profile personal >/dev/null 2>&1 &&
+  HOME="$HOME_ID" "$REPO_ROOT/bootstrap.sh" --no-packages --no-shell >/dev/null 2>&1 &&
+  [[ $(HOME="$HOME_ID" git config --global --includes --get user.email) == "$personal_email" &&
+  $(HOME="$HOME_ID" git config --global --includes --get commit.gpgsign) == true &&
+  $(HOME="$HOME_ID" git config --global --includes --get user.signingkey) == synthetic-key &&
+  $(HOME="$HOME_ID" git config --global --includes --get credential.helper) == synthetic-helper &&
+  $(HOME="$HOME_ID" git config --global --includes --get safe.directory) == /synthetic/trusted &&
+  $(HOME="$HOME_ID" git config --global --includes --get dotfiles.tail) == retained ]] &&
+  cmp -s "$HOME_ID/.config/dotfiles-local/gitconfig" "$SCRATCH/private-git-original"; then
+  ok "personal selection persists without sacrificing private Git settings or tail"
+else
+  no "personal selection lost identity, signing, trust, credentials, or tail"
+fi
+HOME_MISSING="$SCRATCH/missing-identity"
+mkdir -p "$HOME_MISSING"
+if HOME="$HOME_MISSING" "$REPO_ROOT/bootstrap.sh" --no-packages --no-shell --git-profile work >/dev/null 2>&1; then
+  no "work profile succeeded without locally provisioned identity"
+else
+  ok "work profile requires machine-local identity"
 fi
 
 # The default-branch alias must fall back rather than yielding "origin/".
 norepo="$SCRATCH/norepo"
 mkdir -p "$norepo"
-git -C "$norepo" init -q .
-git -C "$norepo" -c user.name="dotfiles tests" -c user.email="tests@example.invalid" \
-  commit -q --allow-empty -m init
-branch="$(git -C "$norepo" -c include.path="$REPO_ROOT/git/.gitconfig" defaultbranch || true)"
+HOME="$HOME_A" GIT_CONFIG_GLOBAL=/dev/null git -C "$norepo" init -q .
+HOME="$HOME_A" GIT_CONFIG_GLOBAL=/dev/null git -C "$norepo" -c user.name="dotfiles tests" -c user.email="tests@example.invalid" \
+  -c commit.gpgsign=false commit -q --allow-empty -m init
+branch="$(HOME="$HOME_A" GIT_CONFIG_GLOBAL=/dev/null git -C "$norepo" -c include.path="$REPO_ROOT/git/.config/dotfiles/gitconfig" defaultbranch || true)"
 if [[ $branch == "main" ]]; then
   ok "defaultbranch falls back to main without origin/HEAD"
 else
@@ -251,36 +315,36 @@ else
 fi
 
 # --- failure modes ---------------------------------------------------------
-# A real file where a symlink belongs must abort loudly, not clobber it.
+# Package conflicts abort; regular entrypoint tails are intentionally preserved.
 HOME_B="$SCRATCH/conflict"
 mkdir -p "$HOME_B"
-echo "pre-existing" >"$HOME_B/.zshrc"
+printf 'pre-existing\n' >"$HOME_B/.tmux.conf"
+printf '# local entrypoint tail\nexport SYNTHETIC_LOCAL=preserved\n' >"$HOME_B/.zshrc"
+cp "$HOME_B/.zshrc" "$SCRATCH/conflict-zshrc"
 if HOME="$HOME_B" "$REPO_ROOT/bootstrap.sh" \
   --no-packages --no-shell --git-profile personal >/dev/null 2>&1; then
   no "stow conflict was not reported"
 else
   ok "stow conflict exits non-zero"
 fi
-if [[ "$(cat "$HOME_B/.zshrc")" == "pre-existing" ]]; then
+if [[ "$(cat "$HOME_B/.tmux.conf")" == "pre-existing" ]] &&
+  cmp -s "$HOME_B/.zshrc" "$SCRATCH/conflict-zshrc"; then
   ok "conflicting file left untouched"
 else
   no "conflicting file was overwritten"
 fi
 
 # --- upgrade path ------------------------------------------------------------
-# Installing over a host that already has its own configs. --backup must move
-# the real files aside, and must never touch files that only *look* real in
-# $HOME because a folded package directory points at them inside the repo.
+# Backups contain only conflicting local regular files, outside the checkout.
+# Rerunning over already managed links must never rename repository files.
 HOME_C="$SCRATCH/upgrade"
 mkdir -p "$HOME_C"
-# Install once so the host has folded package directories (~/.zprofile.d is a
-# single symlink into the repo). That folding is what made an earlier version
-# of --backup rename files inside the repo itself.
 HOME="$HOME_C" "$REPO_ROOT/bootstrap.sh" \
   --no-packages --no-shell --git-profile personal >/dev/null 2>&1
-# Then make one config a real file again, as a host with its own would have.
 rm -f "$HOME_C/.claude/CLAUDE.md"
-echo '# pre-existing' >"$HOME_C/.claude/CLAUDE.md"
+printf '# pre-existing\n' >"$HOME_C/.claude/CLAUDE.md"
+cp "$HOME_C/.claude/CLAUDE.md" "$SCRATCH/claude-original"
+printf 'synthetic private credential\n' >"$HOME_C/.claude/.credentials.json"
 repo_baks_before="$(find "$REPO_ROOT" -name '*.bak' -not -path '*/.git/*' | wc -l | tr -d ' ')"
 
 if HOME="$HOME_C" "$REPO_ROOT/bootstrap.sh" \
@@ -296,10 +360,12 @@ else
   no "CLAUDE.md was not linked"
 fi
 
-if compgen -G "$HOME_C/.claude/CLAUDE.md.*.bak" >/dev/null; then
-  ok "original CLAUDE.md kept as a backup"
+claude_backups=("$HOME_C/.local/state/dotfiles/backups/"*/stow/.claude/CLAUDE.md)
+if cmp -s "${claude_backups[0]}" "$SCRATCH/claude-original" &&
+  [[ $(cat "$HOME_C/.claude/.credentials.json") == 'synthetic private credential' ]]; then
+  ok "original CLAUDE.md backed up outside checkout; credentials preserved"
 else
-  no "original CLAUDE.md was not backed up"
+  no "Claude backup or private credentials were lost"
 fi
 
 repo_baks_after="$(find "$REPO_ROOT" -name '*.bak' -not -path '*/.git/*' | wc -l | tr -d ' ')"
@@ -307,6 +373,15 @@ if [[ $repo_baks_before -eq $repo_baks_after ]]; then
   ok "--backup left the repo untouched"
 else
   no "--backup renamed files inside the repo ($repo_baks_before -> $repo_baks_after)"
+fi
+
+# Installer-focused cases include exact-byte entrypoint preservation, migration
+# permissions/retries, staged privacy filtering, and unsafe backup rejection.
+if bash "$REPO_ROOT/tests/install.sh" >"$SCRATCH/installer-tests.log" 2>&1; then
+  ok "installer privacy, identity, migration, and backup regressions"
+else
+  no "installer regressions failed"
+  cat "$SCRATCH/installer-tests.log" >&2
 fi
 
 printf '\n%s passed, %s failed\n' "$passed" "$failed"
