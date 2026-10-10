@@ -384,5 +384,17 @@ else
   cat "$SCRATCH/installer-tests.log" >&2
 fi
 
+if bash "$REPO_ROOT/tests/omp.sh" >"$SCRATCH/omp-tests.log" 2>&1; then
+  if command -v omp >/dev/null 2>&1; then
+    ok "Omp installer and native sync/privacy regressions"
+  else
+    ok "Omp installer seeding and runtime privacy regressions"
+    printf 'skip  native Omp sync/config cases (omp is not installed)\n'
+  fi
+else
+  no "Omp privacy and sync regressions failed"
+  cat "$SCRATCH/omp-tests.log" >&2
+fi
+
 printf '\n%s passed, %s failed\n' "$passed" "$failed"
 [[ $failed -eq 0 ]]

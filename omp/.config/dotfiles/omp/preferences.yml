@@ -1,0 +1,59 @@
+# Public defaults. Installation seeds missing local settings; omp-sync.sh is opt-in.
+modelRoles:
+  default: anthropic/claude-opus-5-5:high
+  plan: '@default'
+  slow: '@default'
+  task: '@default'
+  smol: openai-codex/gpt-6-luna:low
+  tiny: openai-codex/gpt-6-luna:low
+  review: openai-codex/gpt-6.1-sol:high
+  advisor: openai-codex/gpt-6.1-sol:medium
+task:
+  agentModelOverrides:
+    task: '@task'
+    scout: '@smol'
+    sonic: '@smol'
+    reviewer: '@review'
+    security-reviewer: '@review'
+  eager: preferred
+advisor:
+  enabled: true
+  syncBacklog: '3'
+retry:
+  modelFallback: true
+  fallbackChains:
+    default: [openai-codex/gpt-6.1-sol:high]
+    plan: [openai-codex/gpt-6.1-sol:high]
+    slow: [openai-codex/gpt-6.1-sol:high]
+    task: [openai-codex/gpt-6.1-sol:high]
+    review: [anthropic/claude-opus-5-5:high]
+    smol: [anthropic/claude-sonnet-5-5:low]
+    tiny: [anthropic/claude-sonnet-5-5:low]
+    advisor: [anthropic/claude-sonnet-5-5:medium]
+symbolPreset: nerd
+composer:
+  shape: claude
+theme:
+  dark: cyberpunk-readable
+  light: cyberpunk-readable
+setupVersion: 2
+dev:
+  autoqaConsent: denied
+  autoqa: false
+github:
+  enabled: true
+astGrep:
+  enabled: true
+plan:
+  autosave: true
+secrets:
+  enabled: true
+security:
+  enabled: true
+modelRoleStorage: global
+memory:
+  backend: 'off'
+autolearn:
+  enabled: false
+  autoContinue: false
+hideThinkingBlock: false

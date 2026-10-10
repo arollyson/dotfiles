@@ -13,12 +13,14 @@ local_env=''
 migration_ready=false
 backup_conflicts=false
 git_profile=''
+sync_omp=false
 profile_begin='# >>> dotfiles git identity >>>'
 profile_end='# <<< dotfiles git identity <<<'
 conflict_targets=()
 conflict_backups=()
 stow_done=false
 packages=(git tmux vim zsh claude)
+[[ ! -d "$repo_dir/omp" ]] || packages+=(omp)
 
 die() {
   printf '%s\n' "$*" >&2
@@ -29,6 +31,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
   --migrate-local) migrate_local=true ;;
   --backup) backup_conflicts=true ;;
+  --sync-omp) sync_omp=true ;;
   --git-profile)
     [[ $# -ge 2 ]] || die '--git-profile requires personal or work.'
     git_profile="$2"
@@ -36,10 +39,11 @@ while [[ $# -gt 0 ]]; do
     shift
     ;;
   --help)
-    printf 'Usage: %s [--backup] [--migrate-local] [--git-profile personal|work]\n' "$0"
+    printf 'Usage: %s [--backup] [--migrate-local] [--git-profile personal|work] [--sync-omp]\n' "$0"
     printf 'Back up conflicting local Stow files outside the checkout; preserve all entrypoint tails.\n'
     printf 'Work identity must be provisioned in ~/.config/dotfiles-local/gitconfig.\n'
     printf 'Opt in to moving legacy zsh/.zprofile.d/env.work into ~/.config/dotfiles-local/env.zsh.\n'
+    printf 'Omp settings are regular local files, seeded only when absent; --sync-omp explicitly applies public preferences.\n'
     exit 0
     ;;
   *) die "Unknown option: $1 (see $0 --help)" ;;
@@ -180,6 +184,25 @@ done
 
 # Claude's runtime directory must never resolve into the versioned package.
 [[ ! -L "$HOME/.claude" ]] || die 'Refusing symlink ~/.claude; move its runtime data to a real directory before installation.'
+
+# Omp resources may be linked individually, never its runtime directories or
+# local settings. Validate before Stow conflict handling can move anything.
+if [[ -d "$repo_dir/omp" ]]; then
+  for relative in .omp .omp/agent .omp/agent/extensions .omp/agent/extensions/.lib .omp/agent/themes .omp/agent/rules; do
+    target="$HOME/$relative"
+    [[ ! -L "$target" ]] || die "Refusing folded Omp directory $target; move runtime data to real directories first."
+    [[ ! -e "$target" || -d "$target" ]] || die "Refusing non-directory Omp path $target."
+    backup_location "$target" >/dev/null
+  done
+  for relative in config.yml config.yaml settings.json models.yml models.yaml models.json lsp.json; do
+    target="$HOME/.omp/agent/$relative"
+    [[ ! -L "$target" ]] || die "Refusing symlink Omp settings $target; no target was changed."
+    [[ ! -e "$target" || -f "$target" ]] || die "Refusing non-regular Omp settings $target."
+    backup_location "$target" >/dev/null
+  done
+elif "$sync_omp"; then
+  die '--sync-omp requires the omp package and omp-sync.sh.'
+fi
 
 # A separate identity-only footer wins over preserved local identity settings
 # without overriding their credentials, trust, signing, or other preferences.
@@ -432,6 +455,29 @@ stow --dir="$repo_dir" --target="$HOME" --no-folding \
   --ignore='(^|/)\.zprofile\.d(/|$)' "${packages[@]}"
 stow_done=true
 
+# Seed only absent default-profile files. Do not consult effective configuration
+# (which can contain project, overlay, provider, or machine-private values).
+if [[ -d "$repo_dir/omp" ]]; then
+  (
+    umask 077
+    mkdir -p -- "$HOME/.omp/agent"
+    if [[ ! -e "$HOME/.omp/agent/config.yml" && ! -e "$HOME/.omp/agent/config.yaml" &&
+      ! -e "$HOME/.omp/agent/settings.json" && ! -e "$HOME/.omp/agent/agent.db" &&
+      ! -d "${XDG_DATA_HOME:-$HOME/.local/share}/omp" ]]; then
+      cp -- "$repo_dir/omp/.config/dotfiles/omp/preferences.yml" "$HOME/.omp/agent/config.yml"
+    fi
+    if [[ ! -e "$HOME/.omp/agent/models.yml" && ! -e "$HOME/.omp/agent/models.yaml" &&
+      ! -e "$HOME/.omp/agent/models.json" ]]; then
+      cp -- "$repo_dir/omp/.config/dotfiles/omp/models.yml" "$HOME/.omp/agent/models.yml"
+    fi
+    if [[ ! -e "$HOME/.omp/agent/lsp.json" ]]; then
+      cp -- "$repo_dir/omp/.config/dotfiles/omp/lsp.json" "$HOME/.omp/agent/lsp.json"
+    fi
+  )
+  if "$sync_omp"; then
+    bash "$repo_dir/omp-sync.sh"
+  fi
+fi
 index=0
 for name in ${changed[@]+"${changed[@]}"}; do
   check_unchanged "$name"

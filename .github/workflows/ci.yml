@@ -78,5 +78,13 @@ jobs:
             command -v stow >/dev/null 2>&1 || brew install stow
           fi
 
+      - name: Install yq
+        env:
+          GOBIN: ${{ runner.temp }}/dotfiles-tools
+        run: |
+          set -euo pipefail
+          go install github.com/mikefarah/yq/v4@v4.53.6
+          echo "$GOBIN" >> "$GITHUB_PATH"
+
       - name: Run test suite
         run: ./tests/run.sh

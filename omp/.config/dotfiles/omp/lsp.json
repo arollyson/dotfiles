@@ -1,0 +1,23 @@
+{
+  "servers": {
+    "pyright": {
+      "command": "pyright-langserver",
+      "disabled": false
+    },
+    "rust-analyzer": {
+      "command": "rust-analyzer",
+      "disabled": false,
+      "capabilities": {
+        "flycheck": true,
+        "ssr": true,
+        "expandMacro": true,
+        "runnables": true,
+        "relatedTests": true
+      }
+    },
+    "typescript-language-server": {
+      "command": "typescript-language-server",
+      "disabled": false
+    }
+  }
+}

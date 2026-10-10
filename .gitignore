@@ -12,3 +12,23 @@ claude/.claude/*
 !claude/.claude/CLAUDE.md
 !claude/.claude/settings.json
 !claude/.claude/statusline.sh
+
+# Omp's authored resources are public; all unknown files are private by default.
+# In particular, never admit live settings, MCP connections, auth, or runtime.
+omp/**
+!omp/**/
+!omp/.config/dotfiles/omp/preferences.yml
+!omp/.config/dotfiles/omp/models.yml
+!omp/.config/dotfiles/omp/lsp.json
+!omp/.omp/agent/extensions/answer.ts
+!omp/.omp/agent/extensions/cache-status.ts
+!omp/.omp/agent/extensions/find-session.ts
+!omp/.omp/agent/extensions/fork-tab.ts
+!omp/.omp/agent/extensions/gwt.ts
+!omp/.omp/agent/extensions/priority-color.ts
+!omp/.omp/agent/extensions/status-line.ts
+!omp/.omp/agent/extensions/.lib/cache-calibration.ts
+!omp/.omp/agent/extensions/.lib/cache-estimate.ts
+!omp/.omp/agent/extensions/.lib/status-line-protocol.ts
+!omp/.omp/agent/themes/cyberpunk-readable.json
+!omp/.omp/agent/rules/no-direct-main-push.md

@@ -20,6 +20,7 @@ By default, register Zsh and make it the current account's login shell.
   --backup               Back up conflicting Stow targets outside the checkout.
   --git-profile NAME     Select personal or machine-local work identity.
   --migrate-local        Move legacy env.work into machine-local configuration.
+  --sync-omp             Explicitly apply public Omp preferences after installation.
   --help, -h             Show this help.
 
 Full package installation requires a non-root development account.
@@ -35,7 +36,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
   --no-packages) install_packages=false ;;
   --no-change-shell | --no-shell) change_shell=false ;;
-  --backup | --migrate-local) installer_args+=("$1") ;;
+  --backup | --migrate-local | --sync-omp) installer_args+=("$1") ;;
   --git-profile)
     [[ $# -ge 2 ]] || fail '--git-profile requires personal or work.'
     case "$2" in

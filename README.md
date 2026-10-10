@@ -166,6 +166,110 @@ either original. The old file is removed only after successful publication, and
 reruns do not duplicate settings. Symlink inputs and destinations inside the
 checkout are rejected without overwriting local configuration.
 
+## Omp configuration
+
+Portable preferences and extensions are managed by the `omp` Stow package.
+The authored extensions and generic push reminder are adapted from
+[Brannon Dorsey's configuration](https://github.com/brannondorsey/omp-config)
+with permission for public reuse. His work MCP connections, internal endpoints,
+work rules, memory service, and automatic configuration commit/push policy are
+not imported.
+
+### Settings ownership
+
+`~/.omp/agent` and its resource directories stay real directories, never links
+into this repository. Installation links only reviewed extensions, the readable
+theme, and the generic rule. Writable configuration, authentication, databases,
+sessions, caches, and generated skills remain outside Git.
+
+| Public blueprint | Local writable configuration |
+| --- | --- |
+| `omp/.config/dotfiles/omp/preferences.yml` | `~/.omp/agent/config.yml` or existing `config.yaml` |
+| `omp/.config/dotfiles/omp/models.yml` | `~/.omp/agent/models.yml` or existing `models.yaml` |
+| `omp/.config/dotfiles/omp/lsp.json` | `~/.omp/agent/lsp.json` |
+
+Normal bootstrap/install seeds missing configuration only; reruns leave existing
+settings alone. Legacy JSON or runtime settings are not shadowed by a new YAML
+seed. The generic LSP blueprint declares Python, TypeScript, and Rust servers,
+but does not install or launch their executables.
+
+After editing the public preferences, explicitly apply them:
+
+```sh
+bash "$HOME/.dotfiles/omp-sync.sh"
+```
+
+Or combine installation and explicit synchronization:
+
+```sh
+bash "$HOME/.dotfiles/bootstrap.sh" --sync-omp
+# Config-only image with dependencies provisioned:
+bash "$HOME/.dotfiles/bootstrap.sh" --no-packages --no-shell --sync-omp </dev/null
+```
+
+Sync requires Omp, jq, and Mike Farah yq v4; jq/yq are already in the Brewfile.
+It targets the canonical default profile only, not named profiles, project
+settings, or overlays. Native Omp migrates legacy settings before sync; legacy
+private model definitions are preserved when creating YAML overrides. Unknown
+roles, private provider/header fields, and unrelated settings are retained.
+Existing files are backed up under `~/.local/state/dotfiles/backups/omp-sync.*/`
+before preference/cap changes. Matching reruns do not rewrite files or create
+another backup.
+
+Use `/settings` normally: it writes the regular local config, not the public
+blueprint. Changes remain local across normal installation reruns; explicit sync
+reapplies the selected repo-owned preferences. Existing model-specific or provider
+wildcard fallback chains take precedence over role chains and are preserved.
+
+### Selected models and UI
+
+| Workload | Model | Effort |
+| --- | --- | --- |
+| Primary, planning, deep work, general task agents | Claude Opus 5.5 | high |
+| Code/security review | GPT-6.1 Sol | high |
+| Small tasks, scouts, mechanical tasks, tiny helpers | GPT-6 Luna | low |
+| Background advisor | GPT-6.1 Sol | medium |
+
+The installed catalog has no GPT-6.1 Luna; the small role explicitly uses GPT-6
+Luna. Model selections live in the blueprint, not embedded in custom agent
+prompts. Cross-provider role fallbacks are configured: Opus to Sol, review Sol
+to Opus, small Luna to Sonnet, and advisor Sol to Sonnet. One-shot extension
+completions use the small role with low effort; they are not the full agent retry
+loop.
+Planning, slow work, and general task roles follow `@default`, so changing the
+configured primary also changes those roles.
+
+The advisor uses the three-turn backlog policy. The existing `cyberpunk-readable`
+theme and Claude-shaped composer are retained, thinking remains visible, and
+memory/autolearning are off. Exact Claude 5-family overrides use a 400k context
+budget; the inherited Haiku 4.5 overrides use 150k. Future model releases require
+explicit overrides after checking their real context limits.
+
+### Extensions and private configuration
+
+- Shared status row, passive cache evidence, and `/cache-status`.
+- `/priority high|medium|low|clear` and shortcuts; mirrors priority onto cmux.
+- `/fork-tab` and `/branch-tab`; cmux/tmux integration, with manual launch guidance
+  outside those terminals.
+- `/answer` and Ctrl+.; extracts questions using the small model and collects answers.
+- `/find-session`; searches local history and sends bounded candidate metadata and
+  matching excerpts to the small model for ranking. Work excerpts can leave the
+  machine. Review provider/data policy before using it on sensitive sessions.
+- `/gwt`; creates a worktree under `$PROJECT_HOME/worktrees` (default `~/dev/worktrees`).
+  With no task it stops after worktree creation. With a task it requests implementation,
+  verification, a commit, branch push, and a PR; it never requests a merge.
+
+The generic default-branch push reminder is advisory, not branch protection.
+It does not authorize publication. No extension automatically commits or pushes
+configuration changes.
+
+Keep MCP definitions in the native, machine-local `~/.omp/agent/mcp.json`, and work
+settings/endpoints in regular local Omp configuration or the existing private
+shell environment hook. Do not add them to public blueprints. Omp's authentication
+storage and environment variables remain the credential sources.
+The package's deny-by-default `.gitignore` permits only the reviewed public files,
+not unknown extensions, MCP, settings, auth, or future runtime state.
+
 ## Verification
 
 After installing dependencies:
@@ -175,6 +279,7 @@ bash tests/install.sh
 bash tests/bootstrap.sh
 bash tests/startup.sh
 bash tests/git.sh
+bash tests/omp.sh
 bash tests/run.sh
 ```
 
@@ -186,7 +291,11 @@ The Git regression exercises real Git, Git LFS, and `gh` with local repositories
 and synthetic credentials; it does not authenticate against remote services.
 The native integration suite (`tests/run.sh`) also covers config-only bootstrap,
 identity precedence, Claude runtime privacy, backups, and installer regressions.
-CI runs that suite on macOS and Linux, plus the repository lint hooks.
+Omp regressions cover local configuration ownership, private-field preservation,
+legacy settings, and sync idempotence using the native Omp CLI when installed.
+They never start a session or connect to MCP; native sync cases are explicitly
+skipped when Omp is unavailable. CI provisions yq v4 and runs the native integration
+suite on macOS/Linux, plus the repository lint hooks.
 
 Install the hooks with `prek install`; run them with `prek run --all-files`.
 They check shell syntax, ShellCheck, formatting, merge markers, secrets, workflow
