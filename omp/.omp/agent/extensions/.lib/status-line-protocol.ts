@@ -1,6 +1,6 @@
-export const STATUS_LINE_SET = "com.brannon.status-line/set";
-export const STATUS_LINE_REMOVE = "com.brannon.status-line/remove";
-export const STATUS_LINE_REQUEST = "com.brannon.status-line/request";
+export const STATUS_LINE_SET = "dotfiles.status-line/set";
+export const STATUS_LINE_REMOVE = "dotfiles.status-line/remove";
+export const STATUS_LINE_REQUEST = "dotfiles.status-line/request";
 
 export type StatusLineTone = "success" | "warning" | "error" | "dim";
 

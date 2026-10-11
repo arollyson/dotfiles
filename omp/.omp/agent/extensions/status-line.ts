@@ -11,7 +11,7 @@ import {
 	type StatusLineTone,
 } from "./.lib/status-line-protocol";
 
-const WIDGET_KEY = "com.brannon.status-line";
+const WIDGET_KEY = "dotfiles.status-line";
 const CONTROL_TEXT = /[\p{Cc}\p{Cf}\u2028\u2029]/u;
 
 function isIdentifier(value: unknown): value is string {

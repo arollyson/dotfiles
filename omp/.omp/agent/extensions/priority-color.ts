@@ -50,7 +50,7 @@ import {
 // ---------------------------------------------------------------------------
 
 /** Namespaced: the `custom` entry type space is global. */
-const ENTRY_TYPE = "com.brannon.priority-color";
+const ENTRY_TYPE = "dotfiles.priority-color";
 
 /** cmux must never hang the UI. */
 const CMUX_TIMEOUT_MS = 5_000;
