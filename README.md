@@ -255,10 +255,11 @@ Planning, slow work, and general task roles follow `@default`, so changing the
 configured primary also changes those roles.
 
 The advisor uses the three-turn backlog policy. The existing `cyberpunk-readable`
-theme and Claude-shaped composer are retained, thinking remains visible, and
-memory/autolearning are off. Exact Claude 5-family overrides use a 400k context
-budget; the inherited Haiku 4.5 overrides use 150k. Future model releases require
-explicit overrides after checking their real context limits.
+theme and Claude-shaped composer are retained, thinking blocks are hidden
+(Ctrl+T toggles them and saves the choice), and memory/autolearning are off.
+Exact Claude 5-family overrides use a 400k context budget; the inherited Haiku 4.5
+overrides use 150k. Future model releases require explicit overrides after checking
+their real context limits.
 
 ### GLM security sessions
 

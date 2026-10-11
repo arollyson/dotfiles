@@ -60,4 +60,4 @@ memory:
 autolearn:
   enabled: false
   autoContinue: false
-hideThinkingBlock: false
+hideThinkingBlock: true
