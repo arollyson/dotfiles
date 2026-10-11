@@ -80,11 +80,23 @@ jobs:
 
       - name: Install yq
         env:
-          GOBIN: ${{ runner.temp }}/dotfiles-tools
+          YQ_VERSION: v4.53.6
+          YQ_LINUX_AMD64_SHA256: c5f056448f973ae7d39b5401949648a78f2dc1947d6a8eb65be60d5c504b9385
+          YQ_DARWIN_ARM64_SHA256: cceb0b8d71ea5294334121f8429f33f92b920e7217d904a2f9f35443968ac424
+          TOOLS_DIR: ${{ runner.temp }}/dotfiles-tools
         run: |
           set -euo pipefail
-          go install github.com/mikefarah/yq/v4@v4.53.6
-          echo "$GOBIN" >> "$GITHUB_PATH"
+          case "$RUNNER_OS-$RUNNER_ARCH" in
+          Linux-X64) asset=yq_linux_amd64 sha256="$YQ_LINUX_AMD64_SHA256" ;;
+          macOS-ARM64) asset=yq_darwin_arm64 sha256="$YQ_DARWIN_ARM64_SHA256" ;;
+          *) echo "No pinned yq for $RUNNER_OS-$RUNNER_ARCH" >&2; exit 1 ;;
+          esac
+          curl -fsSL -o "$asset" \
+            "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/${asset}"
+          echo "${sha256}  ${asset}" | shasum -a 256 -c -
+          mkdir -p "$TOOLS_DIR"
+          install -m755 "$asset" "$TOOLS_DIR/yq"
+          echo "$TOOLS_DIR" >> "$GITHUB_PATH"
 
       - name: Run test suite
         run: ./tests/run.sh
