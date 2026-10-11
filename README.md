@@ -158,8 +158,9 @@ automatically: `rules/model-routing.md` (model and subagent routing) and
 `wt` worktrees).
 
 Both bootstrap and direct installation register the required `strip-automode`
-Git clean filter in this checkout. It removes `.autoMode` from the staged
-`claude/.claude/settings.json` while retaining it in the working file. This keeps
+Git filter in this checkout. Its clean step removes `.autoMode` from the staged
+`claude/.claude/settings.json` while retaining it in the working file; its smudge
+step is a passthrough so checkouts and pulls of that file still work. This keeps
 local network layout, hostnames, and private repository references out of commits.
 A pre-commit hook checks the staged JSON as a backstop; `.gitignore` allowlists
 only the intended shared Claude files.

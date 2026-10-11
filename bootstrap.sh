@@ -228,6 +228,7 @@ require_command git 'Install Git before bootstrapping dotfiles.'
 if git -C "$repo_dir" rev-parse --git-dir >/dev/null 2>&1; then
   printf 'Registering the private Claude settings clean filter\n'
   git -C "$repo_dir" config filter.strip-automode.clean "jq --indent 2 'del(.autoMode)'"
+  git -C "$repo_dir" config filter.strip-automode.smudge cat
   git -C "$repo_dir" config filter.strip-automode.required true
   printf 'Initializing repository submodules\n'
   if [[ "$install_packages" == true ]]; then

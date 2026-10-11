@@ -165,6 +165,8 @@ if [[ -e "$repo_dir/.git" ]]; then
   GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null git -C "$repo_dir" config --local \
     filter.strip-automode.clean "jq --indent 2 'del(.autoMode)'"
   GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null git -C "$repo_dir" config --local \
+    filter.strip-automode.smudge cat
+  GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null git -C "$repo_dir" config --local \
     filter.strip-automode.required true
 fi
 work_dir="$(mktemp -d "${TMPDIR:-/tmp}/dotfiles-install.XXXXXX")"

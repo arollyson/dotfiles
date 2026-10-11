@@ -364,6 +364,10 @@ staged_settings="$(git -C "$repo" show :claude/.claude/settings.json)"
 assert_equal "$(printf '%s' "$staged_settings" | jq -r 'has("autoMode")')" false 'privacy filter staged private autoMode data'
 assert_equal "$(printf '%s' "$staged_settings" | jq -r '.model')" synthetic 'privacy filter changed ordinary Claude settings'
 assert_equal "$(jq -r 'has("autoMode")' "$repo/claude/.claude/settings.json")" true 'clean filter destroyed local runtime settings'
+git -C "$repo" -c user.name=synthetic -c user.email=synthetic@example.invalid commit --quiet -m synthetic-settings
+rm "$repo/claude/.claude/settings.json"
+git -C "$repo" checkout --quiet -- claude/.claude/settings.json ||
+  fail 'required privacy filter blocks checking out Claude settings'
 mkdir -p "$repo/zsh/.zprofile.d"
 printf 'export PROFILE_ORDER=legacy-work\nexport LEGACY_LOADS=%s\nexport LEGACY_VALUE="preserved synthetic value"' "\$(( \${LEGACY_LOADS:-0} + 1 ))" >"$repo/zsh/.zprofile.d/env.work"
 chmod 640 "$repo/zsh/.zprofile.d/env.work"
