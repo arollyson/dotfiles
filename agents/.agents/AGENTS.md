@@ -178,6 +178,17 @@ All scripts must start with `set -euo pipefail`. Lint: `shellcheck script.sh && 
 
 Pin actions to SHA hashes with version comments: `actions/checkout@<full-sha>  # vX.Y.Z` (use `persist-credentials: false`). Scan workflows with `zizmor` before committing. Configure Dependabot with 7-day cooldowns and grouped updates. Use `uv` ecosystem (not `pip`) for Python projects so Dependabot updates `uv.lock`.
 
+## Browser Automation
+
+Use `agent-browser` for web automation. Run `agent-browser --help` for all commands, and `agent-browser skills get core` for the version-matched usage guide.
+
+Core workflow:
+
+1. `agent-browser open <url>` - Navigate to page
+2. `agent-browser snapshot -i` - Get interactive elements with refs (@e1, @e2)
+3. `agent-browser click @e1` / `fill @e2 "text"` - Interact using refs
+4. Re-snapshot after page changes
+
 ## Workflow
 
 **Before committing:**
