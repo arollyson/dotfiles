@@ -6,12 +6,16 @@ zsh/.zprofile.d/env.work
 Brewfile.lock.json
 
 # ~/.claude holds credentials, session transcripts and gigabytes of job state.
-# Track the two config files by name and ignore anything else that lands here,
+# Track the shared config files by name and ignore anything else that lands here,
 # so a mis-stow can never commit runtime data to a public repo.
 claude/.claude/*
 !claude/.claude/CLAUDE.md
 !claude/.claude/settings.json
 !claude/.claude/statusline.sh
+!claude/.claude/rules/
+claude/.claude/rules/*
+!claude/.claude/rules/model-routing.md
+!claude/.claude/rules/claude-code-workflow.md
 
 # Omp's authored resources are public; all unknown files are private by default.
 # In particular, never admit live settings, MCP connections, auth, or runtime.

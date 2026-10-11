@@ -129,6 +129,21 @@ When migrating an older symlink-based installation, preserve its local settings
 outside the checkout and remove the old Stow links first. Do not use Stow's
 `--adopt`: it would move local configuration into the repo.
 
+## Shared agent instructions
+
+`agents/.agents/AGENTS.md` is the single, harness-neutral source of development
+standards. The `agents` Stow package links it to `~/.agents/AGENTS.md`, and each
+harness reaches that one file:
+
+| Harness | How it loads the standards |
+| --- | --- |
+| Omp | Natively, as user context from `~/.agents/AGENTS.md`. A `~/.omp/agent/AGENTS.md` would shadow it, so do not create one. |
+| Claude Code | `claude/.claude/CLAUDE.md` is a relative link to the shared file. Claude reads `AGENTS.md` automatically only at project scope; its user-level file is still `~/.claude/CLAUDE.md`. |
+
+Keep harness-specific guidance out of the shared file. Claude-only model routing
+and tool/worktree conventions live in `claude/.claude/rules/`; Omp uses its own
+search tools, model roles, and task isolation.
+
 ## Claude configuration privacy
 
 Claude configuration is installed with Stow's `--no-folding`: `~/.claude` remains
@@ -136,6 +151,11 @@ a real directory, with only the shared configuration files linked into it.
 Existing credentials, sessions, and other runtime files remain outside this
 repository. A symlinked or folded `~/.claude` directory is rejected rather than
 adopted.
+
+Claude-only guidance lives in user-level rules that Claude Code loads
+automatically: `rules/model-routing.md` (model and subagent routing) and
+`rules/claude-code-workflow.md` (`rg`/`fd`/`ast-grep` CLI search and per-subagent
+`wt` worktrees).
 
 Both bootstrap and direct installation register the required `strip-automode`
 Git clean filter in this checkout. It removes `.autoMode` from the staged
@@ -179,8 +199,9 @@ not imported.
 
 `~/.omp/agent` and its resource directories stay real directories, never links
 into this repository. Installation links only reviewed extensions, the readable
-theme, and the generic rule. Writable configuration, authentication, databases,
-sessions, caches, and generated skills remain outside Git.
+theme, and the rules. Writable configuration, authentication, databases,
+sessions, caches, and generated skills remain outside Git. User context comes
+from the shared `~/.agents/AGENTS.md` described above.
 
 | Public blueprint | Local writable configuration |
 | --- | --- |

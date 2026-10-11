@@ -19,7 +19,7 @@ profile_end='# <<< dotfiles git identity <<<'
 conflict_targets=()
 conflict_backups=()
 stow_done=false
-packages=(git tmux vim zsh claude)
+packages=(git tmux vim zsh agents claude)
 [[ ! -d "$repo_dir/omp" ]] || packages+=(omp)
 
 die() {

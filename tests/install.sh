@@ -13,7 +13,7 @@ export DOTFILES_RUNTIME=native GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
 scratch="$(mktemp -d "${TMPDIR:-/tmp}/dotfiles-install-test.XXXXXX")"
 trap 'rm -rf -- "$scratch"' EXIT
 repo="$scratch/repo"
-mkdir -p "$repo/entrypoints" "$repo/zsh/.config/dotfiles" "$repo/git/.config/dotfiles" "$repo/tmux" "$repo/vim" "$repo/claude/.claude"
+mkdir -p "$repo/entrypoints" "$repo/zsh/.config/dotfiles" "$repo/git/.config/dotfiles" "$repo/tmux" "$repo/vim" "$repo/agents/.agents" "$repo/claude/.claude"
 cp "$source_repo/install.sh" "$repo/install.sh"
 cat >"$repo/zsh/.config/dotfiles/zprofile" <<'PROFILE'
 export PROFILE_LOADS=$(( ${PROFILE_LOADS:-0} + 1 ))
@@ -25,7 +25,8 @@ export INTERACTIVE_ORDER=shared
 INTERACTIVE
 printf '[dotfiles]\n    order = shared\n    shared = active\n' >"$repo/git/.config/dotfiles/gitconfig"
 printf '[user]\n    name = Synthetic Personal\n    email = personal@example.invalid\n' >"$repo/git/.config/dotfiles/gitconfig_personal"
-printf '# Synthetic shared instructions\n' >"$repo/claude/.claude/CLAUDE.md"
+printf '# Synthetic shared instructions\n' >"$repo/agents/.agents/AGENTS.md"
+ln -s ../../agents/.agents/AGENTS.md "$repo/claude/.claude/CLAUDE.md"
 printf '{"model":"synthetic"}\n' >"$repo/claude/.claude/settings.json"
 printf '#!/bin/sh\nexit 0\n' >"$repo/claude/.claude/statusline.sh"
 chmod +x "$repo/claude/.claude/statusline.sh"

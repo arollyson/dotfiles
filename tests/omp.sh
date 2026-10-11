@@ -21,7 +21,7 @@ repo="$scratch/repo"
 mkdir -p "$repo" "$scratch/project/.omp" "$scratch/xdg-data" "$scratch/xdg-state" "$scratch/xdg-cache"
 export XDG_DATA_HOME="$scratch/xdg-data" XDG_STATE_HOME="$scratch/xdg-state" XDG_CACHE_HOME="$scratch/xdg-cache"
 cp "$source_repo/install.sh" "$source_repo/omp-sync.sh" "$repo/"
-for package in entrypoints git tmux vim zsh claude omp; do
+for package in entrypoints git tmux vim zsh agents claude omp; do
   cp -R "$source_repo/$package" "$repo/$package"
 done
 # A project/overlay/profile trap: sync must never read these effective values.
@@ -74,6 +74,9 @@ for directory in .omp .omp/agent .omp/agent/extensions .omp/agent/extensions/.li
   [[ -d "$home/$directory" && ! -L "$home/$directory" ]] || fail 'Omp runtime/resource directories must not fold'
 done
 [[ -L "$home/.omp/agent/extensions/answer.ts" ]] || fail 'Authored extension was not installed individually'
+[[ -L "$home/.agents/AGENTS.md" ]] || fail 'Shared standards were not installed as harness-neutral user context'
+same "$home/.claude/CLAUDE.md" "$home/.agents/AGENTS.md" 'Claude user instructions diverged from shared AGENTS.md'
+if grep -q 'Picking the right models' "$home/.agents/AGENTS.md"; then fail 'Claude model routing leaked into shared context'; fi
 mkdir -p "$home/.omp/agent/sessions" "$home/.omp/agent/cache" "$home/.omp/profiles/private/agent"
 printf 'private session\n' >"$home/.omp/agent/sessions/example.jsonl"
 printf 'private database\n' >"$home/.omp/agent/agent.db"

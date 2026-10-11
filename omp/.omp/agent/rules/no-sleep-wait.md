@@ -19,7 +19,7 @@ Hand the wait to something that runs in the background and delivers its result:
 
 - Process, CI run, or job with a native blocking waiter (`gh run watch`, `gh pr checks --watch`, `docker wait`, `kubectl wait`, `wait <pid>`): run it with `bash` and `async: true`, keep working, and let the result arrive.
 - Server or watcher readiness: start a named `bash` service with `ready.log` and/or `ready.port`.
-- Anything that needs polling (deploys, external APIs, flaky endpoints): spawn a `task` subagent to watch it and report back; subagents may poll, the main session may not.
-- Nothing else to do until a background job or agent finishes: call `wait`; never poll `proc://` or `agent://`.
+- Anything that needs polling (deploys, external APIs, flaky endpoints): spawn a background `task` watcher (a non-blocking agent; spawns return immediately with `async.enabled: true`), continue other work, and let its result auto-deliver. Subagents may poll; the main session may not. Never re-run the wait inline or hand it to a `blocking: true` agent.
+- Only when no other work remains until a background job or agent finishes: call `wait`; never poll `proc://` or `agent://`.
 
 This guidance interrupts matching tool calls but its matching is incomplete; it does not catch every waiting idiom.

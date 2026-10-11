@@ -133,7 +133,8 @@ elif [[ -d $HOME_A/.claude ]]; then
 else
   no ".claude was not created"
 fi
-for link in .claude/CLAUDE.md .claude/settings.json .claude/statusline.sh; do
+for link in .agents/AGENTS.md .claude/CLAUDE.md .claude/settings.json .claude/statusline.sh \
+  .claude/rules/model-routing.md .claude/rules/claude-code-workflow.md; do
   if [[ -L $HOME_A/$link ]]; then
     ok "linked $link"
   else
