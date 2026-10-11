@@ -21,6 +21,7 @@ claude/.claude/rules/*
 # In particular, never admit live settings, MCP connections, auth, or runtime.
 omp/**
 !omp/**/
+!omp/README.md
 !omp/.config/dotfiles/omp/preferences.yml
 !omp/.config/dotfiles/omp/models.yml
 !omp/.config/dotfiles/omp/lsp.json
