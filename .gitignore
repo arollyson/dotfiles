@@ -33,3 +33,4 @@ omp/**
 !omp/.omp/agent/extensions/.lib/status-line-protocol.ts
 !omp/.omp/agent/themes/cyberpunk-readable.json
 !omp/.omp/agent/rules/no-direct-main-push.md
+!omp/.omp/agent/rules/no-sleep-wait.md

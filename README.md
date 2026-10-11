@@ -317,6 +317,12 @@ The generic default-branch push reminder is advisory, not branch protection.
 It does not authorize publication. No extension automatically commits or pushes
 configuration changes.
 
+The `no-sleep-wait` rule interrupts main-session `bash`/`eval` calls that sleep to
+wait (`sleep N`, `time.sleep`, `asyncio.sleep`, `Bun.sleep`, `setTimeout` promises)
+and redirects them to async jobs, ready-checked services, or a watching `task`
+subagent; subagents may still poll. Matching is incomplete, and with the default
+`ttsr.repeatMode: once` it fires at most once per session.
+
 Keep MCP definitions in the native, machine-local `~/.omp/agent/mcp.json`, and work
 settings/endpoints in regular local Omp configuration or the existing private
 shell environment hook. Do not add them to public blueprints. Omp's authentication
