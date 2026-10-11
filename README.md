@@ -226,16 +226,31 @@ wildcard fallback chains take precedence over role chains and are preserved.
 | Workload | Model | Effort |
 | --- | --- | --- |
 | Primary, planning, deep work, general task agents | Claude Opus 5.5 | high |
-| Code/security review | GPT-6 Astra | high |
+| Code review, including the `security-reviewer` agent | GPT-6 Astra | high |
 | Small tasks, scouts, mechanical tasks, tiny helpers | GPT-6 Luna | low |
 | Background advisor | GPT-6.1 Sol | medium |
+| Explicit security work (`security` role) | GLM 5.3 via LiteLLM | high |
+| Explicit fast security work (`security-fast` role) | GLM 5.3 Flash via LiteLLM | low |
 
 The installed catalog has no GPT-6.1 Luna; the small role explicitly uses GPT-6
 Luna. Model selections live in the blueprint, not embedded in custom agent
-prompts. Cross-provider role fallbacks are configured: Opus to Sol, review Astra
-to Opus, small Luna to Sonnet, and advisor Sol to Sonnet. One-shot extension
-completions use the small role with low effort; they are not the full agent retry
-loop.
+prompts. Normal fallbacks first try a LiteLLM capacity relay of the same model,
+then the earlier cross-provider fallback, then that fallback's relay:
+
+| Roles | Fallback chain |
+| --- | --- |
+| Primary, planning, slow, task | Opus relay → GPT-6.1 Sol (high) → Sol relay |
+| Review | Astra relay → Opus (high) → Opus relay |
+| Small, tiny | Luna relay → Sonnet (low) → Sonnet relay |
+| Advisor | Sol relay → Sonnet (medium) → Sonnet relay |
+
+Relay entries have no effort suffix and inherit the failing turn's effort. A relay
+is another route to the same model family, not an independent quota pool or a
+way around provider guardrails; it may share upstream limits and policies. No
+normal chain contains GLM. The `security` role falls back only to Flash and
+`security-fast` only to full GLM; neither falls back to Claude or GPT. One-shot
+extension completions use the small role with low effort; they are not the full
+agent retry loop.
 Planning, slow work, and general task roles follow `@default`, so changing the
 configured primary also changes those roles.
 
@@ -244,6 +259,44 @@ theme and Claude-shaped composer are retained, thinking remains visible, and
 memory/autolearning are off. Exact Claude 5-family overrides use a 400k context
 budget; the inherited Haiku 4.5 overrides use 150k. Future model releases require
 explicit overrides after checking their real context limits.
+
+### GLM security sessions
+
+**Refusals do not automatically switch normal sessions to GLM.** Select a GLM
+model with `/model` and repeat the request. Ordinary refusal prose does not
+trigger retry; GLM and its gateway can also refuse or filter requests.
+
+The public `litellm/...` selectors are model names, not credentials. Omp's built-in
+LiteLLM provider uses `LITELLM_API_KEY` or saved `/login` credentials. Its endpoint
+comes from local `providers.litellm.baseUrl` in `models.yml`, then
+`LITELLM_BASE_URL`, then localhost. Keep private URLs and authentication out of
+this repository. An exported shell URL is sufficient when Omp inherits it;
+pin the URL in local `models.yml` for launches that do not inherit that environment.
+
+Start a security session with the per-run overlay. It routes the primary,
+planning, slow, and general task roles to `@security`, scouts, mechanical
+workers, and tiny helpers to `@security-fast`, and keeps their fallbacks within
+GLM. It is a read-only layer for that process, never seeded into `config.yml`.
+
+```sh
+# After installation links the overlay:
+omp --config "$HOME/.config/dotfiles/omp/security.yml"
+# From the checkout before installation:
+omp --config "$HOME/.dotfiles/omp/.config/dotfiles/omp/security.yml"
+```
+
+To change only the main model, select either role directly:
+
+```sh
+omp --model @security        # full GLM, high effort
+omp --model @security-fast   # GLM Flash, low effort
+```
+
+Review routes are unchanged in both cases: `reviewer` and `security-reviewer`
+stay on `@review` (Astra, falling back to its relay and then Opus), and the
+advisor keeps Sol. Select Fable manually for a review when wanted, for example
+with the session-only Alt+P task model pick. The overlay is not a model preset;
+`/modelpreset switch` clears roles a preset omits.
 
 ### Extensions and private configuration
 

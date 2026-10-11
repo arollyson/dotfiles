@@ -1,0 +1,22 @@
+# Explicit security-session overlay: omp --config ~/.config/dotfiles/omp/security.yml
+# Primary, planning and task work run full GLM; scout/sonic/tiny run GLM Flash.
+# Review roles and reviewer/security-reviewer routing stay on the base config.
+modelRoles:
+  security: litellm/databricks-glm-5-3:high
+  security-fast: litellm/databricks-glm-5-3-flash:low
+  default: '@security'
+  plan: '@security'
+  slow: '@security'
+  task: '@security'
+  smol: '@security-fast'
+  tiny: '@security-fast'
+retry:
+  fallbackChains:
+    default: ['@security', '@security-fast']
+    plan: ['@security', '@security-fast']
+    slow: ['@security', '@security-fast']
+    task: ['@security', '@security-fast']
+    smol: ['@security-fast', '@security']
+    tiny: ['@security-fast', '@security']
+    security: ['@security-fast']
+    security-fast: ['@security']

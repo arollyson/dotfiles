@@ -8,6 +8,8 @@ modelRoles:
   tiny: openai-codex/gpt-6-luna:low
   review: openai-codex/gpt-6-astra:high
   advisor: openai-codex/gpt-6.1-sol:medium
+  security: litellm/databricks-glm-5-3:high
+  security-fast: litellm/databricks-glm-5-3-flash:low
 task:
   agentModelOverrides:
     task: '@task'
@@ -22,14 +24,16 @@ advisor:
 retry:
   modelFallback: true
   fallbackChains:
-    default: [openai-codex/gpt-6.1-sol:high]
-    plan: [openai-codex/gpt-6.1-sol:high]
-    slow: [openai-codex/gpt-6.1-sol:high]
-    task: [openai-codex/gpt-6.1-sol:high]
-    review: [anthropic/claude-opus-5-5:high]
-    smol: [anthropic/claude-sonnet-5-5:low]
-    tiny: [anthropic/claude-sonnet-5-5:low]
-    advisor: [anthropic/claude-sonnet-5-5:medium]
+    default: [litellm/claude-opus-5-5, openai-codex/gpt-6.1-sol:high, litellm/gpt-6.1-sol]
+    plan: [litellm/claude-opus-5-5, openai-codex/gpt-6.1-sol:high, litellm/gpt-6.1-sol]
+    slow: [litellm/claude-opus-5-5, openai-codex/gpt-6.1-sol:high, litellm/gpt-6.1-sol]
+    task: [litellm/claude-opus-5-5, openai-codex/gpt-6.1-sol:high, litellm/gpt-6.1-sol]
+    review: [litellm/gpt-6-astra, anthropic/claude-opus-5-5:high, litellm/claude-opus-5-5]
+    smol: [litellm/gpt-6-luna, anthropic/claude-sonnet-5-5:low, litellm/claude-sonnet-5-5]
+    tiny: [litellm/gpt-6-luna, anthropic/claude-sonnet-5-5:low, litellm/claude-sonnet-5-5]
+    advisor: [litellm/gpt-6.1-sol, anthropic/claude-sonnet-5-5:medium, litellm/claude-sonnet-5-5]
+    security: [litellm/databricks-glm-5-3-flash:low]
+    security-fast: [litellm/databricks-glm-5-3:high]
 symbolPreset: nerd
 composer:
   shape: claude
