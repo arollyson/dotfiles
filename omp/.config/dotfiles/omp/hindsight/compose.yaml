@@ -1,0 +1,62 @@
+name: hindsight
+
+services:
+  hindsight:
+    image: ghcr.io/vectorize-io/hindsight:1.1.0
+    container_name: hindsight
+    restart: unless-stopped
+    # Embedded Postgres builds per-bank vector indexes with ~512 MB of dynamic
+    # shared memory; Docker's 64 MB /dev/shm default fails new-bank creation.
+    shm_size: 1gb
+    ports:
+      - "127.0.0.1:8888:8888"
+      - "127.0.0.1:9999:9999"
+    environment:
+      # Hindsight recognizes reasoning models by name (gpt-5/o1/o3), so it treats
+      # gpt-6-luna as a non-reasoning model. On chat/completions that sends
+      # max_tokens (rejected) and tool calls under the default reasoning effort
+      # (rejected). The Responses API accepts reasoning with tools; the LiteLLM
+      # relay drops the temperature this model also rejects.
+      HINDSIGHT_API_LLM_PROVIDER: openai-responses
+      HINDSIGHT_API_LLM_BASE_URL: ${LITELLM_BASE_URL:?set LITELLM_BASE_URL to the LiteLLM relay}/v1
+      HINDSIGHT_API_LLM_MODEL: gpt-6-luna
+      HINDSIGHT_API_LLM_EXTRA_BODY: '{"additional_drop_params": ["temperature"]}'
+      # Fact extraction preserves the source language more reliably with mini.
+      HINDSIGHT_API_RETAIN_LLM_MODEL: gpt-5.4-mini
+      HINDSIGHT_API_TENANT_EXTENSION: hindsight_api.extensions.builtin.tenant:ApiKeyTenantExtension
+      HINDSIGHT_API_WORKER_ID: hindsight-local
+    entrypoint:
+      - /bin/bash
+      - -ec
+    command:
+      - |
+        export HINDSIGHT_API_LLM_API_KEY="$$(cat /run/secrets/litellm_api_key)"
+        HINDSIGHT_API_TOKEN="$$(cat /run/secrets/hindsight_api_token)"
+        export HINDSIGHT_API_TENANT_API_KEY="$$HINDSIGHT_API_TOKEN"
+        export HINDSIGHT_CP_DATAPLANE_API_KEY="$$HINDSIGHT_API_TOKEN"
+        export HINDSIGHT_CP_ACCESS_KEY="$$(cat /run/secrets/dashboard_access_key)"
+        exec /app/start-all.sh
+    secrets:
+      - litellm_api_key
+      - hindsight_api_token
+      - dashboard_access_key
+    volumes:
+      - hindsight-data:/home/hindsight/.pg0
+    stop_grace_period: 40s
+    healthcheck:
+      test: ["CMD", "python3", "-m", "hindsight_api.http_probe", "http://localhost:8888/health", "5"]
+      interval: 10s
+      timeout: 6s
+      retries: 12
+      start_period: 120s
+
+secrets:
+  litellm_api_key:
+    file: ${HOME}/.config/dotfiles-local/hindsight/litellm_api_key
+  hindsight_api_token:
+    file: ${HOME}/.config/dotfiles-local/hindsight/hindsight_api_token
+  dashboard_access_key:
+    file: ${HOME}/.config/dotfiles-local/hindsight/dashboard_access_key
+
+volumes:
+  hindsight-data:

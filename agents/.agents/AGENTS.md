@@ -178,6 +178,10 @@ All scripts must start with `set -euo pipefail`. Lint: `shellcheck script.sh && 
 
 Pin actions to SHA hashes with version comments: `actions/checkout@<full-sha>  # vX.Y.Z` (use `persist-credentials: false`). Scan workflows with `zizmor` before committing. Configure Dependabot with 7-day cooldowns and grouped updates. Use `uv` ecosystem (not `pip`) for Python projects so Dependabot updates `uv.lock`.
 
+### AWS
+
+**Never run anything with admin-level AWS permissions** — no `*admin*` profiles, no `AWSReservedSSO_*Admin*` roles, not even read-only calls like `sts get-caller-identity`. Use the least-privileged credentials that can do the job; machine-local rules name them. If only admin credentials would work, stop and tell the user what needs running; do not run it yourself.
+
 ## Browser Automation
 
 Use `agent-browser` for web automation. Run `agent-browser --help` for all commands, and `agent-browser skills get core` for the version-matched usage guide.

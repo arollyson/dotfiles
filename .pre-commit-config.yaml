@@ -3,6 +3,8 @@
 # Update pinned revs with: prek auto-update --cooldown-days 7
 ---
 exclude: '^vim/\.vim/pack/'
+# commit-msg and pre-push shims carry the private-terms checks below.
+default_install_hook_types: [pre-commit, commit-msg, pre-push]
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -88,3 +90,23 @@ repos:
             fi;
           done' --
         files: '^claude/\.claude/settings\.json$'
+
+      # Terms live in ~/.config/dotfiles-local/private-terms, outside this
+      # public repo; CI has no list and skips. See hooks/private-terms.sh.
+      - id: private-terms
+        name: no private terms in staged files
+        language: system
+        entry: hooks/private-terms.sh staged
+        stages: [pre-commit, manual]
+      - id: private-terms-message
+        name: no private terms in commit message or identity
+        language: system
+        entry: hooks/private-terms.sh message
+        stages: [commit-msg]
+      - id: private-terms-push
+        name: no private terms in unpushed commits
+        language: system
+        entry: hooks/private-terms.sh push
+        stages: [pre-push]
+        always_run: true
+        pass_filenames: false

@@ -397,5 +397,24 @@ else
   cat "$SCRATCH/omp-tests.log" >&2
 fi
 
+if bash "$REPO_ROOT/tests/refusal-fallback.sh" >"$SCRATCH/refusal-tests.log" 2>&1; then
+  if grep -q '^SKIP' "$SCRATCH/refusal-tests.log"; then
+    ok "refusal-fallback extension skipped"
+    sed 's/^SKIP: /skip  /' "$SCRATCH/refusal-tests.log"
+  else
+    ok "refusal-fallback routing and cleanup against native Omp"
+  fi
+else
+  no "refusal-fallback regressions failed"
+  cat "$SCRATCH/refusal-tests.log" >&2
+fi
+
+if bash "$REPO_ROOT/tests/private-terms.sh" >"$SCRATCH/private-terms-tests.log" 2>&1; then
+  ok "private-terms hook blocks terms and fails closed on bad lists"
+else
+  no "private-terms hook regressions failed"
+  cat "$SCRATCH/private-terms-tests.log" >&2
+fi
+
 printf '\n%s passed, %s failed\n' "$passed" "$failed"
 [[ $failed -eq 0 ]]
