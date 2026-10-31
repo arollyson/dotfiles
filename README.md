@@ -49,6 +49,15 @@ loads later and wins. Changed files are backed up to `~/.local/state/dotfiles/ba
 | `~/.config/dotfiles-local/env.zsh` | Environment variables, certificates |
 | `~/.config/dotfiles-local/interactive.zsh` | Interactive shell settings |
 | `~/.config/dotfiles-local/gitconfig` | Git identity, signing, credentials |
+| `~/.config/dotfiles-local/private-terms` | Regexes the hooks block from this public repo |
+
+This repo is public, so everything employer-specific (hosts, tools, aliases,
+profiles, work email) goes in `~/.config/dotfiles-local/`. It sits outside the
+checkout, so nothing there can be committed. As a backstop, `prek install` adds
+pre-commit, commit-msg, and pre-push hooks (`hooks/private-terms.sh`) that reject
+staged files, file names, commit messages, author/committer identities, and
+unpushed commits matching any `private-terms` regex. A missing list fails locally
+(an empty one opts out); CI has no list and skips the check.
 
 - `--git-profile work` needs `user.email` in the local gitconfig. The choice persists.
 - To replace the shared `gh` credential helper, add `[credential "https://github.com"]`

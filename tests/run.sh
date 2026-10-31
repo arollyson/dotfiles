@@ -397,5 +397,12 @@ else
   cat "$SCRATCH/omp-tests.log" >&2
 fi
 
+if bash "$REPO_ROOT/tests/private-terms.sh" >"$SCRATCH/private-terms-tests.log" 2>&1; then
+  ok "private-terms hook blocks terms and fails closed on bad lists"
+else
+  no "private-terms hook regressions failed"
+  cat "$SCRATCH/private-terms-tests.log" >&2
+fi
+
 printf '\n%s passed, %s failed\n' "$passed" "$failed"
 [[ $failed -eq 0 ]]
