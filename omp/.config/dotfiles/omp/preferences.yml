@@ -31,7 +31,11 @@ retry:
     review: [litellm/gpt-6-astra, anthropic/claude-opus-5-5:high, litellm/claude-opus-5-5]
     smol: [litellm/gpt-6-luna, anthropic/claude-sonnet-5-5:low, litellm/claude-sonnet-5-5]
     tiny: [litellm/gpt-6-luna, anthropic/claude-sonnet-5-5:low, litellm/claude-sonnet-5-5]
-    advisor: [litellm/gpt-6.1-sol, anthropic/claude-sonnet-5-5:medium, litellm/claude-sonnet-5-5]
+    advisor:
+      - litellm/gpt-6.1-sol
+      - litellm/databricks-glm-5-3:medium
+      - anthropic/claude-sonnet-5-5:medium
+      - litellm/claude-sonnet-5-5
     security: [litellm/databricks-glm-5-3-flash:low]
     security-fast: [litellm/databricks-glm-5-3:high]
 symbolPreset: nerd

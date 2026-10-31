@@ -31,7 +31,8 @@ in local config, never in this repo.
 | advisor | GPT-6.1 Sol (medium) |
 | `security` / `security-fast` | GLM 5.3 / GLM 5.3 Flash via LiteLLM |
 
-A refusal does not switch to GLM. Pick it with `/model`, or start a session on it:
+Cyber-safety blocks retry on GLM automatically (see `refusal-fallback` below); nothing
+else does. To work on GLM from the start, pick it with `/model`, or start a session on it:
 
 ```sh
 omp --config "$HOME/.config/dotfiles/omp/security.yml"  # main roles on GLM; review unchanged
@@ -46,9 +47,25 @@ LiteLLM authenticates with `LITELLM_API_KEY` or `/login`; its endpoint comes fro
 `/cache-status`, `/priority`, `/fork-tab`, `/branch-tab`, `/answer` (Ctrl+.),
 `/find-session`, and `/gwt`.
 
+- `refusal-fallback` retries a cyber-safety block (Anthropic refusal category
+  `cyber`, OpenAI `cyber_policy`) on the `security` role's model instead of the
+  normal fallback chain. Other refusals and ordinary failures keep the normal
+  chain. omp's own retry does the switch, so a block it can't replay (for example
+  after tool calls ran) isn't retried, and the session stays on GLM until omp
+  reverts to the primary model. `tests/refusal-fallback.sh` checks it against a
+  mock provider; it needs omp and node, so CI skips it.
 - `/find-session` sends matching excerpts to the small model, so work content can leave the machine.
 - `/gwt [task]` creates a worktree under `$PROJECT_HOME/worktrees` (default
   `~/dev/worktrees`); with a task it opens a PR but never merges.
-- Rules: a reminder against pushing to the default branch, and `no-sleep-wait`,
-  which stops the main session sleeping to wait. Both are advisory.
+- Rules: a reminder against pushing to the default branch, `no-sleep-wait`,
+  which stops the main session sleeping to wait, and `no-aws-admin`, which
+  stops any agent's `bash`/`eval` call that selects an `*admin*` AWS profile or
+  assumes an `*Admin*` role. All three match command text, so indirection (a
+  profile name in a variable, a script file) gets past them. They fire on every
+  match only with `ttsr.repeatMode: after-gap` and `ttsr.repeatGap: 0`; omp's
+  default fires each rule once per session.
+- Employer-specific names (profiles, accounts, internal tools) stay out of this
+  public repo: keep them in `~/.config/dotfiles-local/` and symlink them into
+  `~/.omp/agent/rules/` (omp; `alwaysApply: true` for always-on guidance) and
+  `~/.claude/rules/` (Claude Code). Stow leaves those files alone.
 - Nothing commits or pushes configuration automatically.

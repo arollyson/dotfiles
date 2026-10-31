@@ -32,10 +32,12 @@ omp/**
 !omp/.omp/agent/extensions/fork-tab.ts
 !omp/.omp/agent/extensions/gwt.ts
 !omp/.omp/agent/extensions/priority-color.ts
+!omp/.omp/agent/extensions/refusal-fallback.ts
 !omp/.omp/agent/extensions/status-line.ts
 !omp/.omp/agent/extensions/.lib/cache-calibration.ts
 !omp/.omp/agent/extensions/.lib/cache-estimate.ts
 !omp/.omp/agent/extensions/.lib/status-line-protocol.ts
 !omp/.omp/agent/themes/cyberpunk-readable.json
+!omp/.omp/agent/rules/no-aws-admin.md
 !omp/.omp/agent/rules/no-direct-main-push.md
 !omp/.omp/agent/rules/no-sleep-wait.md
