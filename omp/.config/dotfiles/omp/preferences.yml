@@ -60,7 +60,7 @@ security:
   enabled: true
 modelRoleStorage: global
 memory:
-  backend: 'off'
+  backend: hindsight
 autolearn:
   enabled: false
   autoContinue: false

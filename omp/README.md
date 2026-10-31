@@ -69,3 +69,21 @@ LiteLLM authenticates with `LITELLM_API_KEY` or `/login`; its endpoint comes fro
   `~/.omp/agent/rules/` (omp; `alwaysApply: true` for always-on guidance) and
   `~/.claude/rules/` (Claude Code). Stow leaves those files alone.
 - Nothing commits or pushes configuration automatically.
+
+## Hindsight memory
+
+`memory.backend: hindsight` points omp at a local [Hindsight](https://github.com/vectorize-io/hindsight)
+service on `localhost:8888`. omp recalls on the first turn and retains the session every
+three turns; that text goes through the LiteLLM relay for fact extraction, and memories
+stay in the `hindsight-data` Docker volume. Needs Docker and `LITELLM_BASE_URL`.
+
+```sh
+bash "$HOME/.config/dotfiles/omp/hindsight/setup-secrets.sh"  # prompts once for the relay key
+docker compose -f "$HOME/.config/dotfiles/omp/hindsight/compose.yaml" up -d --wait
+```
+
+Secrets live in `~/.config/dotfiles-local/hindsight/` (`0700`, files `0600`); the script
+generates the API token and dashboard key and never overwrites or prints them. Login
+shells export the token as `HINDSIGHT_API_TOKEN`, so restart omp from a new shell. Check
+with `/memory diagnose` and `/memory stats`; the dashboard is at `localhost:9999`.
+`docker compose … down` keeps memories; `down --volumes` deletes them.
